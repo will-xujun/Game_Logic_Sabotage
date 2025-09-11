@@ -7,8 +7,8 @@ begin
   Separable formulas of Lmu should be realised as an inductive property.
   right-linearity in RGL is also an inductive property. \<close>
 
-datatype Atm_game = Base_game
-datatype Atm_fml = Base_fml
+datatype Atm_game = "int"
+datatype Atm_fml = "int"
 
 datatype GL_game = 
   GL_Atm_Game "Atm_game"
@@ -41,7 +41,10 @@ datatype 'c RGL_game =
   RGL_Atm_Game "Atm_game"
   | RGL_Var 'c
   | RGL_Dual "'c RGL_game"
-  | RGL_test "'c RGL_fml" 
+  | RGL_Test "'c RGL_fml" 
+  | RGL_Choice "'c RGL_game" "'c RGL_game"
+  | RGL_Seq "'c RGL_game" "'c RGL_game"
+  | RGL_Rec 'c "'c RGL_game"
 and
  'c RGL_fml = 
     RGL_Atm_fml "Atm_fml"
