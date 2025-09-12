@@ -52,6 +52,26 @@ and
   | RGL_Or "'c RGL_fml" "'c RGL_fml"
   | RGL_Mod "'c RGL_game" "'c RGL_fml"
 
+datatype 'c RGL_ext_game =
+  RGL_ext_Atm_Game "Atm_game"
+  | RGL_ext_Atm_Game_Dual "Atm_game"
+  | RGL_ext_Var 'c
+  | RGL_ext_Var_Dual 'c
+  | RGL_ext_Test "'c RGL_ext_fml"
+  | RGL_ext_Test_Dual "'c RGL_ext_fml"
+  | RGL_ext_Choice "'c RGL_ext_game" "'c RGL_ext_game"
+  | RGL_ext_Choice_Dual "'c RGL_ext_game" "'c RGL_ext_game"
+  | RGL_ext_Seq "'c RGL_ext_game" "'c RGL_ext_game"
+  | RGL_ext_Rec 'c "'c RGL_ext_game"
+  | RGL_ext_Rec_Dual 'c "'c RGL_ext_game"
+and 
+  'c RGL_ext_fml = 
+    RGL_ext_Atm_fml "Atm_fml"
+  | RGL_ext_Not "'c RGL_ext_fml"
+  | RGL_ext_Or "'c RGL_ext_fml" "'c RGL_ext_fml"
+  | RGL_ext_And "'c RGL_ext_fml" "'c RGL_ext_fml"
+  | RGL_ext_Mod "'c RGL_ext_game" "'c RGL_ext_fml"   
+
 datatype Lmu_fml = 
   Lmu_Id
   | Lmu_Atm_fml "Atm_fml"
