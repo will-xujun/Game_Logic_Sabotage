@@ -5,44 +5,32 @@ imports
 begin
 \<comment>\<open>We realise the semantics of GL, GLs, RGL, FLC, Lmu, LStar.\<close>
 
-type_synonym world_type = "int set"
-type_synonym sub_world_type = "int set"
-type_synonym eff_fn_type = "sub_world_type \<Rightarrow> sub_world_type"
+type_synonym 'a world_type = "'a set"
+type_synonym 'a sub_world_type = "'a set"
+type_synonym 'a eff_fn_type = "'a sub_world_type \<Rightarrow> 'a sub_world_type"
 
 type_synonym atm_fmls = "Atm_fml set"
 type_synonym atm_games = "Atm_game set"
 type_synonym var_set_type = "int set"
 type_synonym var_type = "int"
 
-locale mono_nbd =
-  fixes
-    World :: "'a set"
-  and  PropInterp :: "Atm_fml \<Rightarrow> 'a set"
-  and  GameInterp :: "Atm_game \<Rightarrow> 'a set \<Rightarrow> 'a set"
-assumes
-  wd_prop:  "\<forall>P::atm_fmls. \<forall>p\<in>P. (PropInterp p) \<subseteq> World"
-and 
-  wd_game: "(\<forall>G::atm_games. \<forall>g\<in>G. mono (GameInterp g))
-  \<and> (\<forall>G::atm_games. \<forall>g\<in>G. \<forall>A\<subseteq>World. (GameInterp g A) \<subseteq> World)"
-
-
 \<comment>\<open>notion of monotone neighbourhood structure\<close>
-record Nbd_Struct = 
-  World :: world_type
-  PropInterp :: "Atm_fml \<Rightarrow> sub_world_type"
-  GameInterp :: "Atm_game \<Rightarrow> eff_fn_type"
+record ('a) Nbd_Struct = 
+  World :: "'a world_type"
+  PropInterp :: "Atm_fml \<Rightarrow> 'a sub_world_type"
+  GameInterp :: "Atm_game \<Rightarrow> 'a eff_fn_type"
 
 \<comment>\<open>use a predicate to ensure monotone nbd structure is defined correctly.\<close>
-definition is_nbd_struct :: "Nbd_Struct \<Rightarrow> bool" where
+definition is_nbd_struct :: "'a Nbd_Struct \<Rightarrow> bool" where
   "is_nbd_struct S \<equiv> 
     (\<forall>G::atm_games. \<forall>g\<in>G. mono (GameInterp S g))
   \<and> (\<forall>G::atm_games. \<forall>g\<in>G. \<forall>A\<subseteq>(World S). (GameInterp S g A) \<subseteq> (World S))
   \<and> (\<forall>P::atm_fmls. \<forall>p\<in>P. (PropInterp S p) \<subseteq> (World S))"
 
 \<comment>\<open>notion of valuation\<close>
-type_synonym val = "var_type \<Rightarrow> sub_world_type \<Rightarrow> sub_world_type"
+type_synonym 'a val = "var_type \<Rightarrow> 'a sub_world_type \<Rightarrow> 'a sub_world_type"
 
-definition is_val :: "Nbd_Struct \<Rightarrow> val \<Rightarrow> bool" where
+definition is_val :: "'a Nbd_Struct \<Rightarrow> 'a val \<Rightarrow> bool" where
   "is_val S f \<equiv> \<forall>V::var_set_type. \<forall>i\<in>V. (mono (f i)) \<and> (\<forall>A\<subseteq> (World S). (f i A) \<subseteq> (World S))"
 
 \<comment>\<open>notion of context\<close>
@@ -58,36 +46,41 @@ definition dual_cx :: "cx \<Rightarrow> cx" where
   "dual_cx cx = -cx"
 
 fun subst_cx :: "cx \<Rightarrow> Atm_game \<Rightarrow> int \<Rightarrow> cx" where
-  "subst_cx cx a i = cx[a \<mapsto> i]"
+  "subst_cx f a i b = (if a=b then i else f b)"
 
 \<comment>\<open>semantics for GLs fmls and games\<close>
 
 \<comment>\<open>take world_type product with contexts\<close>
 type_synonym GLs_ground_type = "int \<times> cx"
-type_synonym GLs_eff_fn_type = "GLs_ground_type set \<Rightarrow> GLs_ground_type set"
+type_synonym GLs_world_type = "GLs_ground_type world_type"
+type_synonym GLs_sub_world_type = "GLs_ground_type sub_world_type"
+type_synonym GLs_eff_fn_type = "GLs_sub_world_type \<Rightarrow> GLs_sub_world_type"
 
-definition sabo_compl :: "Nbd_Struct \<Rightarrow> GLs_ground_type set \<Rightarrow> GLs_ground_type set" where
+definition sabo_compl :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_world_type \<Rightarrow> GLs_world_type" where
   "sabo_compl N A = {(w,cx). (w,dual_cx cx)\<notin> A }"
 
-definition sabo_dual :: "Nbd_Struct \<Rightarrow> GLs_eff_fn_type \<Rightarrow> GLs_eff_fn_type" where
+definition sabo_dual :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_eff_fn_type \<Rightarrow> GLs_eff_fn_type" where
   "sabo_dual N f A = sabo_compl N (f (sabo_compl N A))"
 
-definition GLs_game_subst :: "GLs_ground_type set \<Rightarrow> "
+\<comment>\<open>function that substitutes atomic game "a" to Angelic control in context\<close>
+definition GLs_game_subst :: "GLs_sub_world_type \<Rightarrow> Atm_game \<Rightarrow> GLs_sub_world_type" where
+  "GLs_game_subst A a = {(w,c). (w,(subst_cx c a 1)) \<in> A}"
 
-fun GLs_fml_sem :: "Nbd_Struct \<Rightarrow> GLs_fml \<Rightarrow> GLs_ground_type set" 
- and GLs_game_sem :: "Nbd_Struct => GLs_game => GLs_eff_fn_type"
+fun GLs_fml_sem :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_fml \<Rightarrow> GLs_sub_world_type"
+ and GLs_game_sem :: "GLs_ground_type Nbd_Struct => GLs_game => GLs_eff_fn_type"
   where
-  "GLs_fml_sem N (GLs_Atm_fm i) = PropInterp N i"
+  "GLs_fml_sem N (GLs_Atm_fml i) = PropInterp N i"
 | "GLs_fml_sem N (GLs_Not fml) = (World N)-(GLs_fml_sem N fml)"
-| "GLs_fml_sem N (GLs_Or) f1 f2 = GLs_fml_sem N f1 \<union> GLs_fml_sem N f2"
-| "GLs_fml_sem N (GLs_Mod) g f = (GLs_game_sem N g) (GLs_fml_sem N f)"
-| "GLs_game_sem N (GLs_Atm_Game i) = GameInterp N i"
+| "GLs_fml_sem N (GLs_Or f1 f2) = GLs_fml_sem N f1 \<union> GLs_fml_sem N f2"
+| "GLs_fml_sem N (GLs_Mod g f) = (GLs_game_sem N g) (GLs_fml_sem N f)"
+| "GLs_game_sem N (GLs_Atm_Game i) A = GameInterp N i A"
 | "GLs_game_sem N (GLs_Test fml) A = (GLs_fml_sem N fml) \<inter> A "
-| "GLs_game_sem N (GLs_Sabo a) = GLs_game_subst A g"
-| "GLs_game_sem N (GLs_Dual g) = sabo_dual N (GLs_game_sem N g)"
+| "GLs_game_sem N (GLs_Sabo a) A = GLs_game_subst A a"
+| "GLs_game_sem N (GLs_Dual g) A = sabo_dual N (GLs_game_sem N g) A"
 | "GLs_game_sem N (GLs_Choice a b) A = (GLs_game_sem N a A) \<union> (GLs_game_sem N b A)"
 | "GLs_game_sem N (GLs_Seq a b) A = GLs_game_sem N a (GLs_game_sem N b A)"
-| "GLs_game_sem N (Star a) A = \<mu>B.(A \<union> (GLs_game_sem N a B))"
+| "GLs_game_sem N (GLs_Star a) A = lfp (\<lambda>B. A \<union> (GLs_game_sem N a B))"
+
 
 
 end
