@@ -1,6 +1,7 @@
 theory Semantics
-imports
+  imports
   "Syntax"
+  "HOL-Library.FuncSet"
   
 begin
 \<comment>\<open>We realise the semantics of GL, GLs, RGL, FLC, Lmu, LStar.\<close>
@@ -25,9 +26,9 @@ record ('a) Nbd_Struct =
 \<comment>\<open>predicate to ensure monotone nbd structure is defined correctly.\<close>
 definition is_nbd_struct :: "'a Nbd_Struct \<Rightarrow> bool" where
   "is_nbd_struct S \<equiv> 
-    (\<forall>G::atm_games. \<forall>g\<in>G. mono (GameInterp S g))
-  \<and> (\<forall>G::atm_games. \<forall>g\<in>G. \<forall>A\<subseteq>(World S). (GameInterp S g A) \<subseteq> (World S))
-  \<and> (\<forall>P::atm_fmls. \<forall>p\<in>P. (PropInterp S p) \<subseteq> (World S))"
+    (\<forall>g. mono (GameInterp S g))
+  \<and> ((\<forall>g. \<forall>A \<subseteq> (World S). (GameInterp S g A) \<subseteq> (World S))
+  \<and> (\<forall>P::atm_fmls. \<forall>p\<in>P. (PropInterp S p) \<subseteq> (World S)))"
 
 \<comment>\<open>valuation\<close>
 type_synonym 'a val = "var_type \<Rightarrow> 'a eff_fn_type"
@@ -82,6 +83,19 @@ lemma union_mono : "\<forall>A::'a set. mono (union A)"
 definition union2 :: "('a set \<Rightarrow> 'a set) \<Rightarrow> 'a set \<Rightarrow> 'a set \<Rightarrow> 'a set" where
   "union2 f A B = A \<union> f(B)"
 
+definition inter:: "'a set \<Rightarrow> 'a set \<Rightarrow> 'a set" where
+  "inter A B = A \<inter> B"
+
+lemma set_double_diff: 
+  fixes X:: "'a set" and A::"'a set"
+  assumes "A \<subseteq> X"
+  shows "X-(X-A) = A"
+proof (rule set_eqI)
+  fix x
+  show "(x \<in> X - (X - A)) = (x \<in> A)"
+    using \<open>A \<subseteq> X\<close> by auto
+qed
+
 lemma union_mono_strong: "\<forall>A. mono f \<Longrightarrow> mono (union2 f A)"
   apply (simp add:mono_def union2_def)
   apply (auto)
@@ -135,6 +149,7 @@ fun RGL_dualize_free :: "RGL_var_type \<Rightarrow> RGL_var_type RGL_ext_game \<
 | "RGL_dualize_free x (RGL_ext_Seq g1 g2) = RGL_ext_Seq (RGL_dualize_free x g1) (RGL_dualize_free x g2)"
 | "RGL_dualize_free x g = g"
 
+\<comment>\<open>syntactic dual and complement functions. The return value is automatically in normal form.\<close>
 fun RGL_syn_comp :: "RGL_var_type RGL_ext_fml \<Rightarrow> RGL_var_type RGL_ext_fml"
 and RGL_syn_dual :: "RGL_var_type RGL_ext_game \<Rightarrow> RGL_var_type RGL_ext_game" 
 where
@@ -157,6 +172,7 @@ where
   RGL_ext_Rec_Dual x (RGL_dualize_free x (RGL_syn_dual g))"
 | "RGL_syn_dual (RGL_ext_Rec_Dual x g) = RGL_ext_Rec x (RGL_dualize_free x (RGL_syn_dual g))"
 
+
 fun RGL_syn_subst :: "RGL_var_type \<Rightarrow> RGL_var_type RGL_ext_game \<Rightarrow> RGL_var_type RGL_ext_game \<Rightarrow> RGL_var_type RGL_ext_game" 
 where
   "RGL_syn_subst x0 g0 (RGL_ext_Var x) = (if x=x0 then g0 else (RGL_ext_Var x))"
@@ -174,6 +190,7 @@ where
 | "RGL_syn_subst x0 g0 (RGL_ext_Rec_Dual x g) = 
     (if x0=x then (RGL_ext_Rec_Dual x g) else RGL_ext_Rec_Dual x (RGL_syn_subst x0 g0 g))"
 
+
 fun RGL_fml_embed_ext :: "RGL_var_type RGL_fml \<Rightarrow> RGL_var_type RGL_ext_fml"
 and  RGL_gm_embed_ext :: "RGL_var_type RGL_game \<Rightarrow> RGL_var_type RGL_ext_game" where
  "RGL_fml_embed_ext (RGL_Atm_fml f) = RGL_ext_Atm_fml f"
@@ -188,6 +205,94 @@ and  RGL_gm_embed_ext :: "RGL_var_type RGL_game \<Rightarrow> RGL_var_type RGL_e
 | "RGL_gm_embed_ext (RGL_Seq g1 g2) = RGL_ext_Seq (RGL_gm_embed_ext g1) (RGL_gm_embed_ext g2)"
 | "RGL_gm_embed_ext (RGL_Rec x g) = RGL_ext_Rec x (RGL_gm_embed_ext g)"
 
+\<comment>\<open>For the syntax extended with complement and dual, we only interpret normal form formulas.
+  Choice_Dual = cap, interpreted as set intersection
+  Rec_Dual = inverted r. binder, interpreted as the gfp
+  Test_Dual = inverted question mark, interpreted as the dual function
+  \<close>
+fun RGL_ext_fml_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type RGL_ext_fml \<Rightarrow> RGL_sub_world_type"
+  and RGL_ext_game_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type RGL_ext_game \<Rightarrow> RGL_eff_fn_type"
+  where
+  "RGL_ext_fml_sem N I (RGL_ext_Atm_fml fl) = PropInterp N fl"
+| "RGL_ext_fml_sem N I (RGL_ext_Not fl) = (World N) - (RGL_ext_fml_sem N I fl)"
+| "RGL_ext_fml_sem N I (RGL_ext_Or fl1 fl2) = (RGL_ext_fml_sem N I fl1) \<union> (RGL_ext_fml_sem N I fl2)"
+| "RGL_ext_fml_sem N I (RGL_ext_And fl1 fl2) = (RGL_ext_fml_sem N I fl1) \<inter> (RGL_ext_fml_sem N I fl2)"
+| "RGL_ext_fml_sem N I (RGL_ext_Mod g fl) = (RGL_ext_game_sem N I g) (RGL_ext_fml_sem N I fl)"
+| "RGL_ext_game_sem N I (RGL_ext_Atm_Game a) A = GameInterp N a A"
+| "RGL_ext_game_sem N I (RGL_ext_Atm_Game_Dual a) A = (dual_eff_fn (World N) (GameInterp N a)) A"
+| "RGL_ext_game_sem N I (RGL_ext_Var x) A = I x A"
+| "RGL_ext_game_sem N I (RGL_ext_Var_Dual x) A = I x A"
+| "RGL_ext_game_sem N I (RGL_ext_Test fl) A = (RGL_ext_fml_sem N I fl) \<inter> A"
+| "RGL_ext_game_sem N I (RGL_ext_Test_Dual fl) A = (dual_eff_fn (World N) (inter (RGL_ext_fml_sem N I fl))) A"
+| "RGL_ext_game_sem N I (RGL_ext_Choice g1 g2) A = (RGL_ext_game_sem N I g1 A) \<union> (RGL_ext_game_sem N I g2 A)"
+| "RGL_ext_game_sem N I (RGL_ext_Choice_Dual g1 g2) A = (RGL_ext_game_sem N I g1 A) \<inter> (RGL_ext_game_sem N I g2 A)"
+| "RGL_ext_game_sem N I (RGL_ext_Seq g1 g2) A = ((RGL_ext_game_sem N I g2) \<circ> (RGL_ext_game_sem N I g1)) A"
+| "RGL_ext_game_sem N I (RGL_ext_Rec x g) A = (lfp (\<lambda>u. (RGL_ext_game_sem N (I(x:=u)) g))) A"
+| "RGL_ext_game_sem N I (RGL_ext_Rec_Dual x g) A = (gfp (\<lambda>u. (RGL_ext_game_sem N (I(x:=u)) g))) A"
 
 
+lemma syn_invert_save_sem :
+  fixes \<phi> :: "RGL_var_type RGL_ext_fml"
+  and \<alpha> :: "RGL_var_type RGL_ext_game" 
+  and N :: "RGL_ground_type Nbd_Struct"
+  and I :: "RGL_var_type val"
+assumes 
+  "is_nbd_struct N"
+  "is_val N I"
+shows "(RGL_ext_fml_sem N I (RGL_syn_comp \<phi>) = (World N)-(RGL_ext_fml_sem N I \<phi>))"
+  "restrict (RGL_ext_game_sem N I (RGL_syn_dual \<alpha>)) (Pow (World N)) 
+    = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I \<alpha>)) (Pow (World N))"
+proof (induction \<phi> and \<alpha>)
+  case (RGL_ext_Atm_Game x)
+  then show ?case by simp
+next
+  case (RGL_ext_Atm_Game_Dual x)
+  have P: "a \<subseteq> (World N) \<Longrightarrow> a = World N - (World N - a)" using set_double_diff by blast
+  have Q: "a \<subseteq> (World N) \<Longrightarrow> (GameInterp N x) a \<subseteq> World N"
+    using assms(1)[THEN conjunct2]
+  then show ?case by (simp add:dual_eff_fn_def)
+next
+  case (RGL_ext_Var x)
+  then show ?case sorry
+next
+  case (RGL_ext_Var_Dual x)
+  then show ?case sorry
+next
+  case (RGL_ext_Test x)
+  then show ?case sorry
+next
+  case (RGL_ext_Test_Dual x)
+  then show ?case sorry
+next
+  case (RGL_ext_Choice x1 x2)
+  then show ?case sorry
+next
+  case (RGL_ext_Choice_Dual x1 x2)
+  then show ?case sorry
+next
+  case (RGL_ext_Seq x1 x2)
+  then show ?case sorry
+next
+  case (RGL_ext_Rec x1 x2)
+  then show ?case sorry
+next
+  case (RGL_ext_Rec_Dual x1 x2)
+  then show ?case sorry
+next
+  case (RGL_ext_Atm_fml x)
+  then show ?case sorry
+next
+  case (RGL_ext_Not x)
+  then show ?case sorry
+next
+  case (RGL_ext_Or x1 x2)
+  then show ?case sorry
+next
+  case (RGL_ext_And x1 x2)
+  then show ?case sorry
+next
+  case (RGL_ext_Mod x1 x2)
+  then show ?case sorry
+qed
+  
 end
