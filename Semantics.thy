@@ -221,7 +221,7 @@ fun RGL_ext_fml_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type va
 | "RGL_ext_game_sem N I (RGL_ext_Atm_Game a) A = GameInterp N a A"
 | "RGL_ext_game_sem N I (RGL_ext_Atm_Game_Dual a) A = (dual_eff_fn (World N) (GameInterp N a)) A"
 | "RGL_ext_game_sem N I (RGL_ext_Var x) A = I x A"
-| "RGL_ext_game_sem N I (RGL_ext_Var_Dual x) A = I x A"
+| "RGL_ext_game_sem N I (RGL_ext_Var_Dual x) A = (dual_eff_fn (World N) (I x)) A"
 | "RGL_ext_game_sem N I (RGL_ext_Test fl) A = (RGL_ext_fml_sem N I fl) \<inter> A"
 | "RGL_ext_game_sem N I (RGL_ext_Test_Dual fl) A = (dual_eff_fn (World N) (inter (RGL_ext_fml_sem N I fl))) A"
 | "RGL_ext_game_sem N I (RGL_ext_Choice g1 g2) A = (RGL_ext_game_sem N I g1 A) \<union> (RGL_ext_game_sem N I g2 A)"
@@ -238,61 +238,117 @@ lemma syn_invert_save_sem :
   and I :: "RGL_var_type val"
 assumes 
   "is_nbd_struct N"
-  "is_val N I"
+  and "is_val N I"
 shows "(RGL_ext_fml_sem N I (RGL_syn_comp \<phi>) = (World N)-(RGL_ext_fml_sem N I \<phi>))"
   "restrict (RGL_ext_game_sem N I (RGL_syn_dual \<alpha>)) (Pow (World N)) 
     = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I \<alpha>)) (Pow (World N))"
-proof (induction \<phi> and \<alpha>)
+proof 
+ (induction \<phi> and \<alpha>)
   case (RGL_ext_Atm_Game x)
   then show ?case by simp
 next
   case (RGL_ext_Atm_Game_Dual x)
-  have P: "a \<subseteq> (World N) \<Longrightarrow> a = World N - (World N - a)" using set_double_diff by blast
-  have Q: "a \<subseteq> (World N) \<Longrightarrow> (GameInterp N x) a \<subseteq> World N"
-    using assms(1)[THEN conjunct2]
-  then show ?case by (simp add:dual_eff_fn_def)
+  show ?case
+  proof (rule ext)
+    fix xa show "restrict (RGL_ext_game_sem N I (RGL_syn_dual (RGL_ext_Atm_Game_Dual x))) (Pow (World N)) xa = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I (RGL_ext_Atm_Game_Dual x))) (Pow (World N)) xa "
+      apply (simp add:restrict_def dual_eff_fn_def)
+      apply (simp add:set_double_diff)
+      apply (rule impI)
+    proof -
+      from assms(1) have "\<forall>A. (A \<subseteq> (World N) \<longrightarrow> (GameInterp N x A) \<subseteq> (World N))" by (simp add:is_nbd_struct_def)
+      then have "\<forall> A. (A \<subseteq> (World N) \<longrightarrow>  GameInterp N x A = (World N - ((World N)- (GameInterp N x A))))" by auto
+      then show "xa \<subseteq> World N \<Longrightarrow> GameInterp N x xa = World N - (World N - GameInterp N x xa)" by blast
+    qed
+  qed
 next
   case (RGL_ext_Var x)
-  then show ?case sorry
+  show ?case by auto
 next
   case (RGL_ext_Var_Dual x)
-  then show ?case sorry
+  show ?case
+  proof (rule)
+    fix xa show "restrict (RGL_ext_game_sem N I (RGL_syn_dual (RGL_ext_Var_Dual x))) (Pow (World N)) xa = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I (RGL_ext_Var_Dual x))) (Pow (World N)) xa"
+      apply (simp add:restrict_def dual_eff_fn_def)
+      apply (simp add:set_double_diff)
+      apply (rule impI)
+    proof -
+      from assms(2) have "\<forall>A \<subseteq> (World N). (I x A) \<subseteq> (World N)" by (auto simp add:is_val_def)
+      then show "xa \<subseteq> World N \<Longrightarrow> I x xa = World N - (World N - I x xa)" by blast
+    qed
+  qed
 next
   case (RGL_ext_Test x)
-  then show ?case sorry
+  show ?case
+  proof (rule)
+    fix xa show "restrict (RGL_ext_game_sem N I (RGL_syn_dual (RGL_ext_Test x))) (Pow (World N)) xa = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I (RGL_ext_Test x))) (Pow (World N)) xa"
+      by (simp add:restrict_def dual_eff_fn_def inter_def)
+  qed
 next
   case (RGL_ext_Test_Dual x)
-  then show ?case sorry
+  show ?case
+  proof (rule)
+    fix xa show "restrict (RGL_ext_game_sem N I (RGL_syn_dual (RGL_ext_Test_Dual x))) (Pow (World N)) xa = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I (RGL_ext_Test_Dual x))) (Pow (World N)) xa"
+      apply (simp add:restrict_def dual_eff_fn_def inter_def)
+      apply (simp add:set_double_diff)
+      apply (rule impI)
+    proof -
+      assume P: "xa \<subseteq> World N"
+      have "(RGL_ext_fml_sem N I x) \<inter> xa \<subseteq> World N" using P by auto
+      then show "RGL_ext_fml_sem N I x \<inter> xa = World N - (World N - RGL_ext_fml_sem N I x \<inter> xa)" by blast
+    qed
+  qed
 next
   case (RGL_ext_Choice x1 x2)
-  then show ?case sorry
+  then show ?case
+  proof -
+    assume P1: "restrict (RGL_ext_game_sem N I (RGL_syn_dual x1)) (Pow (World N)) = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I x1)) (Pow (World N))"
+      and P2 : "restrict (RGL_ext_game_sem N I (RGL_syn_dual x2)) (Pow (World N)) = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I x2)) (Pow (World N))"
+    show "restrict (RGL_ext_game_sem N I (RGL_syn_dual (RGL_ext_Choice x1 x2))) (Pow (World N)) = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I (RGL_ext_Choice x1 x2))) (Pow (World N))"
+    proof (rule)
+      fix x show "restrict (RGL_ext_game_sem N I (RGL_syn_dual (RGL_ext_Choice x1 x2))) (Pow (World N)) x = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I (RGL_ext_Choice x1 x2))) (Pow (World N)) x"
+        apply (simp add:dual_eff_fn_def)
+      proof (rule)
+        assume P3 : "x\<subseteq> World N"
+        show "RGL_ext_game_sem N I (RGL_syn_dual x1) x \<inter> RGL_ext_game_sem N I (RGL_syn_dual x2) x = World N - (RGL_ext_game_sem N I x1 (World N - x) \<union> RGL_ext_game_sem N I x2 (World N - x)) "
+          using P1 P2 P3 by blast
+      qed
+  qed
 next
   case (RGL_ext_Choice_Dual x1 x2)
-  then show ?case sorry
+  consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
+  then show ?case by auto
 next
   case (RGL_ext_Seq x1 x2)
-  then show ?case sorry
+  consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
+  then show ?case by auto
 next
   case (RGL_ext_Rec x1 x2)
-  then show ?case sorry
+  consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
+  then show ?case by auto
 next
   case (RGL_ext_Rec_Dual x1 x2)
-  then show ?case sorry
+  consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
+  then show ?case by auto
 next
   case (RGL_ext_Atm_fml x)
-  then show ?case sorry
+  consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
+  then show ?case by auto
 next
   case (RGL_ext_Not x)
-  then show ?case sorry
+  consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
+  then show ?case by auto
 next
   case (RGL_ext_Or x1 x2)
-  then show ?case sorry
+  consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
+  then show ?case by auto
 next
   case (RGL_ext_And x1 x2)
-  then show ?case sorry
+  consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
+  then show ?case by auto
 next
   case (RGL_ext_Mod x1 x2)
-  then show ?case sorry
+  consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
+  then show ?case by auto
 qed
   
 end
