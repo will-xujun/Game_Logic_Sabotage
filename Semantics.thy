@@ -2,6 +2,7 @@ theory Semantics
   imports
   "Syntax"
   "HOL-Library.FuncSet"
+  "Util"
   
 begin
 \<comment>\<open>We realise the semantics of GL, GLs, RGL, FLC, Lmu, LStar.\<close>
@@ -28,13 +29,13 @@ definition is_nbd_struct :: "'a Nbd_Struct \<Rightarrow> bool" where
   "is_nbd_struct S \<equiv> 
     (\<forall>g. mono (GameInterp S g))
   \<and> ((\<forall>g. \<forall>A \<subseteq> (World S). (GameInterp S g A) \<subseteq> (World S))
-  \<and> (\<forall>P::atm_fmls. \<forall>p\<in>P. (PropInterp S p) \<subseteq> (World S)))"
+  \<and> (\<forall>p. (PropInterp S p) \<subseteq> (World S)))"
 
 \<comment>\<open>valuation\<close>
 type_synonym 'a val = "var_type \<Rightarrow> 'a eff_fn_type"
 
 definition is_val :: "'a Nbd_Struct \<Rightarrow> 'a val \<Rightarrow> bool" where
-  "is_val S f \<equiv> \<forall>V::var_set_type. \<forall>i\<in>V. (mono (f i)) \<and> (\<forall>A\<subseteq> (World S). (f i A) \<subseteq> (World S))"
+  "is_val S f \<equiv> \<forall>i. \<forall>A\<subseteq> (World S). (mono (f i)) \<and>  ((f i A) \<subseteq> (World S))"
 
 \<comment>\<open>context\<close>
 definition Sab :: "int set" where
@@ -230,6 +231,68 @@ fun RGL_ext_fml_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type va
 | "RGL_ext_game_sem N I (RGL_ext_Rec x g) A = (lfp (\<lambda>u. (RGL_ext_game_sem N (I(x:=u)) g))) A"
 | "RGL_ext_game_sem N I (RGL_ext_Rec_Dual x g) A = (gfp (\<lambda>u. (RGL_ext_game_sem N (I(x:=u)) g))) A"
 
+lemma RGL_ext_game_sem_wd :
+  fixes N :: "RGL_ground_type Nbd_Struct"
+  and I :: "RGL_var_type val"
+assumes "is_nbd_struct N"
+    and "is_val N I"
+  shows
+    "(RGL_ext_fml_sem N I f) \<subseteq> (World N)"
+    " \<forall>A. A \<subseteq> (World N) \<longrightarrow> (RGL_ext_game_sem N I g) A \<subseteq> (World N)"
+proof (induction f and g arbitrary:A)
+  case (RGL_ext_Atm_Game x)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+next
+  case (RGL_ext_Atm_Game_Dual x)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def dual_eff_fn_def)
+next
+  case (RGL_ext_Var x)
+  then show ?case using assms by (auto simp add:is_val_def)
+next
+  case (RGL_ext_Var_Dual x)
+  then show ?case using assms by (auto simp add:is_val_def dual_eff_fn_def)
+next
+  case (RGL_ext_Test x)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+next
+  case (RGL_ext_Test_Dual x)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def dual_eff_fn_def)
+next
+  case (RGL_ext_Choice x1 x2)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+next
+  case (RGL_ext_Choice_Dual x1 x2)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def dual_eff_fn_def)
+next
+  case (RGL_ext_Seq x1 x2)
+  then show ?case by auto
+next
+  case (RGL_ext_Rec x1 x2)
+  then show ?case
+    apply simp
+  proof -
+\<comment>\<open>lfp of an operator on functions\<close>
+    have "\<forall>A\<subseteq> (World N) .  "
+  qed
+next
+  case (RGL_ext_Rec_Dual x1 x2)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+next
+  case (RGL_ext_Atm_fml x)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+next
+  case (RGL_ext_Not x)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+next
+  case (RGL_ext_Or x1 x2)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+next
+  case (RGL_ext_And x1 x2)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+next
+  case (RGL_ext_Mod x1 x2)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+qed
 
 lemma syn_invert_save_sem :
   fixes \<phi> :: "RGL_var_type RGL_ext_fml"
