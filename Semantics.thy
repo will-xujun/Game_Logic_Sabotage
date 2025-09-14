@@ -308,19 +308,86 @@ next
       fix x show "restrict (RGL_ext_game_sem N I (RGL_syn_dual (RGL_ext_Choice x1 x2))) (Pow (World N)) x = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I (RGL_ext_Choice x1 x2))) (Pow (World N)) x"
         apply (simp add:dual_eff_fn_def)
       proof (rule)
-        assume P3 : "x\<subseteq> World N"
+        assume P3 : "x \<subseteq> World N"
         show "RGL_ext_game_sem N I (RGL_syn_dual x1) x \<inter> RGL_ext_game_sem N I (RGL_syn_dual x2) x = World N - (RGL_ext_game_sem N I x1 (World N - x) \<union> RGL_ext_game_sem N I x2 (World N - x)) "
-          using P1 P2 P3 by blast
+        proof -
+          from P1 have
+            "restrict (RGL_ext_game_sem N I (RGL_syn_dual x1)) (Pow (World N)) x = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I x1)) (Pow (World N)) x" by simp
+          then have
+            P1': "RGL_ext_game_sem N I (RGL_syn_dual x1) x = dual_eff_fn (World N) (RGL_ext_game_sem N I x1) x" using P3 by simp
+          from P2 have 
+            "restrict (RGL_ext_game_sem N I (RGL_syn_dual x2)) (Pow (World N))x = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I x2)) (Pow (World N))x" by simp
+          then have
+            P2': "RGL_ext_game_sem N I (RGL_syn_dual x2) x = dual_eff_fn (World N) (RGL_ext_game_sem N I x2) x" using P3 by simp
+          from P1' P2' show " RGL_ext_game_sem N I (RGL_syn_dual x1) x \<inter> RGL_ext_game_sem N I (RGL_syn_dual x2) x =
+            World N - (RGL_ext_game_sem N I x1 (World N - x) \<union> RGL_ext_game_sem N I x2 (World N - x))" by (auto simp add:dual_eff_fn_def)
+        qed
       qed
+    qed
   qed
 next
   case (RGL_ext_Choice_Dual x1 x2)
-  consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
-  then show ?case by auto
+  then show ?case
+  proof -
+    assume P1: "restrict (RGL_ext_game_sem N I (RGL_syn_dual x1)) (Pow (World N)) = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I x1)) (Pow (World N))"
+    and P2: "restrict (RGL_ext_game_sem N I (RGL_syn_dual x2)) (Pow (World N)) = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I x2)) (Pow (World N))"
+    show "restrict (RGL_ext_game_sem N I (RGL_syn_dual (RGL_ext_Choice_Dual x1 x2))) (Pow (World N)) =
+    restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I (RGL_ext_Choice_Dual x1 x2))) (Pow (World N)) "
+    proof 
+      fix x show " restrict (RGL_ext_game_sem N I (RGL_syn_dual (RGL_ext_Choice_Dual x1 x2))) (Pow (World N)) x =
+         restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I (RGL_ext_Choice_Dual x1 x2))) (Pow (World N)) x "
+        apply (simp add:dual_eff_fn_def)
+      proof 
+        assume P3: "x\<subseteq> World N"
+        show "RGL_ext_game_sem N I (RGL_syn_dual x1) x \<union> RGL_ext_game_sem N I (RGL_syn_dual x2) x =
+    World N - RGL_ext_game_sem N I x1 (World N - x) \<inter> RGL_ext_game_sem N I x2 (World N - x)"
+        proof -
+          have "restrict (RGL_ext_game_sem N I (RGL_syn_dual x1)) (Pow (World N)) x = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I x1)) (Pow (World N)) x"
+            using P1 by simp
+          then have P1': "RGL_ext_game_sem N I (RGL_syn_dual x1) x = dual_eff_fn (World N) (RGL_ext_game_sem N I x1) x" using P3 by simp
+          have "restrict (RGL_ext_game_sem N I (RGL_syn_dual x2)) (Pow (World N)) x = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I x2)) (Pow (World N)) x"
+            using P2 by simp
+          then have P2': "RGL_ext_game_sem N I (RGL_syn_dual x2) x = dual_eff_fn (World N) (RGL_ext_game_sem N I x2) x" using P3 by simp
+          show "RGL_ext_game_sem N I (RGL_syn_dual x1) x \<union> RGL_ext_game_sem N I (RGL_syn_dual x2) x =
+            World N - RGL_ext_game_sem N I x1 (World N - x) \<inter> RGL_ext_game_sem N I x2 (World N - x)" using P1' P2' by (auto simp add:dual_eff_fn_def)
+        qed
+      qed
+    qed
+  qed
 next
   case (RGL_ext_Seq x1 x2)
-  consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
-  then show ?case by auto
+  then show ?case
+  proof -
+    assume P1: "restrict (RGL_ext_game_sem N I (RGL_syn_dual x1)) (Pow (World N)) = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I x1)) (Pow (World N))"
+    and P2: "restrict (RGL_ext_game_sem N I (RGL_syn_dual x2)) (Pow (World N)) = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I x2)) (Pow (World N))"
+    show "restrict (RGL_ext_game_sem N I (RGL_syn_dual (RGL_ext_Seq x1 x2))) (Pow (World N)) =
+    restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I (RGL_ext_Seq x1 x2))) (Pow (World N)) "
+    proof 
+      fix x show "restrict (RGL_ext_game_sem N I (RGL_syn_dual (RGL_ext_Seq x1 x2))) (Pow (World N)) x =
+         restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I (RGL_ext_Seq x1 x2))) (Pow (World N)) x"
+        apply (simp add:dual_eff_fn_def)
+      proof 
+        assume P3: "x\<subseteq> World N"
+        show " RGL_ext_game_sem N I (RGL_syn_dual x2) (RGL_ext_game_sem N I (RGL_syn_dual x1) x) 
+          = World N - RGL_ext_game_sem N I x2 (RGL_ext_game_sem N I x1 (World N - x))"
+        proof -
+          have "restrict (RGL_ext_game_sem N I (RGL_syn_dual x1)) (Pow (World N)) x = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I x1)) (Pow (World N)) x"
+            using P1 by simp
+          then have P1': "RGL_ext_game_sem N I (RGL_syn_dual x1) x = dual_eff_fn (World N) (RGL_ext_game_sem N I x1) x" using P3 by simp
+          have P2': "restrict (RGL_ext_game_sem N I (RGL_syn_dual x2)) (Pow (World N))(RGL_ext_game_sem N I (RGL_syn_dual x1) x)
+               = restrict (dual_eff_fn (World N) (RGL_ext_game_sem N I x2)) (Pow (World N)) (RGL_ext_game_sem N I (RGL_syn_dual x1) x)"
+            using P2 by simp
+
+          then have "RGL_ext_game_sem N I (RGL_syn_dual x1) x \<subseteq> World N" using  by auto
+          then have P2'': "RGL_ext_game_sem N I (RGL_syn_dual x2) (RGL_ext_game_sem N I (RGL_syn_dual x1) x)
+             = dual_eff_fn (World N) (RGL_ext_game_sem N I x2) (RGL_ext_game_sem N I (RGL_syn_dual x1) x)" using P3 by simp
+          show "RGL_ext_game_sem N I (RGL_syn_dual x2) (RGL_ext_game_sem N I (RGL_syn_dual x1) x) 
+          = World N - RGL_ext_game_sem N I x2 (RGL_ext_game_sem N I x1 (World N - x))" using P1' P2' by (simp add:dual_eff_fn_def)
+        qed
+      qed
+    qed
+  qed
+  
 next
   case (RGL_ext_Rec x1 x2)
   consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
