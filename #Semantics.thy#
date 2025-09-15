@@ -27,7 +27,7 @@ record ('a) Nbd_Struct =
 definition is_nbd_struct :: "'a Nbd_Struct \<Rightarrow> bool" where
   "is_nbd_struct S \<equiv> 
     (\<forall>g. mono (GameInterp S g))
-  \<and> ((\<forall>g. ( (GameInterp S g) \<in> ( funcset (World S) (World S) ) ))
+  \<and> ((\<forall>g. ( (GameInterp S g) \<in> ( funcset (Pow (World S)) (Pow (World S)) ) ))
   \<and> (\<forall>p. (PropInterp S p) \<subseteq> (World S)))"
 
 \<comment>\<open>valuation\<close>
