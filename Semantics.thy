@@ -23,6 +23,9 @@ record ('a) Nbd_Struct =
   PropInterp :: "Atm_fml \<Rightarrow> 'a sub_world_type"
   GameInterp :: "Atm_game \<Rightarrow> 'a eff_fn_type"
 
+definition eff_fn_fam :: "'a Nbd_Struct \<Rightarrow> ('a eff_fn_type) set" where
+  "eff_fn_fam N = funcset (Pow (World N)) (Pow (World N))"
+
 \<comment>\<open>predicate to ensure monotone nbd structure is defined correctly.\<close>
 definition is_nbd_struct :: "'a Nbd_Struct \<Rightarrow> bool" where
   "is_nbd_struct S \<equiv> 
@@ -271,7 +274,7 @@ next
     apply simp
   proof -
 \<comment>\<open>lfp of an operator on functions\<close>
-    have "\<forall>A\<subseteq> (World N) .  "
+    have "\<forall>u. \<forall>A\<subseteq> World N. u(A)\<subseteq> World N \<and> ((\<lambda>u. RGL_ext_game_sem N (I(x1 := u)) x2) u)(A)\<subseteq> World N"
   qed
 next
   case (RGL_ext_Rec_Dual x1 x2)
@@ -453,11 +456,11 @@ next
 next
   case (RGL_ext_Rec x1 x2)
   consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
-  then show ?case by auto
+  then show ?case 
 next
   case (RGL_ext_Rec_Dual x1 x2)
   consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
-  then show ?case by auto
+  then show ?case 
 next
   case (RGL_ext_Atm_fml x)
   consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
@@ -465,19 +468,19 @@ next
 next
   case (RGL_ext_Not x)
   consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
-  then show ?case by auto
+  then show ?case 
 next
   case (RGL_ext_Or x1 x2)
   consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
-  then show ?case by auto
+  then show ?case 
 next
   case (RGL_ext_And x1 x2)
   consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
-  then show ?case by auto
+  then show ?case 
 next
   case (RGL_ext_Mod x1 x2)
   consider "a \<in> Pow (World N)" | "a \<notin> Pow (World N)" by blast
-  then show ?case by auto
+  then show ?case 
 qed
   
 end
