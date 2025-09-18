@@ -7,8 +7,8 @@ begin
   Separable formulas of Lmu should be realised as an inductive property.
   right-linearity in RGL is also an inductive property. \<close>
 
-datatype Atm_game = "int"
-datatype Atm_fml = "int"
+type_synonym Atm_game = "int"
+type_synonym Atm_fml = "int"
 
 datatype GL_game = 
   GL_Atm_Game "Atm_game"
@@ -36,6 +36,46 @@ and GLs_fml =
   | GLs_Not "GLs_fml"
   | GLs_Or "GLs_fml" "GLs_fml"
   | GLs_Mod "GLs_game" "GLs_fml"
+
+datatype GLs_ext_game =
+  GLs_ext_Atm_Game "Atm_game"
+  | GLs_ext_Sabo "Atm_game"
+  | GLs_ext_DSabo "Atm_game"
+  | GLs_ext_Dual "GLs_ext_game"
+  | GLs_ext_Test "GLs_ext_fml"
+  | GLs_ext_Choice "GLs_ext_game" "GLs_ext_game"
+  | GLs_ext_DChoice "GLs_ext_game" "GLs_ext_game"
+  | GLs_ext_DTest "GLs_ext_fml"
+  | GLs_ext_Seq "GLs_ext_game" "GLs_ext_game"
+  | GLs_ext_Star "GLs_ext_game"
+  | GLs_ext_Cross "GLs_ext_game"
+and GLs_ext_fml = 
+  GLs_ext_Atm_fml "Atm_fml"
+| GLs_ext_Not "GLs_ext_fml"
+| GLs_ext_Or "GLs_ext_fml" "GLs_ext_fml"
+| GLs_ext_And "GLs_ext_fml" "GLs_ext_fml"
+| GLs_ext_Mod "GLs_ext_game" "GLs_ext_fml"
+
+fun GLs_syn_comp :: "GLs_ext_fml \<Rightarrow> GLs_ext_fml"
+  and GLs_syn_dual :: "GLs_ext_game \<Rightarrow> GLs_ext_game"
+  where 
+  "GLs_syn_comp (GLs_ext_Atm_fml P) = GLs_ext_Not (GLs_ext_Atm_fml P)"
+|   "GLs_syn_comp (GLs_ext_Not f) = f"
+|   "GLs_syn_comp (GLs_ext_Or f1 f2) = GLs_ext_And (GLs_syn_comp f1) (GLs_syn_comp f2)"
+|   "GLs_syn_comp (GLs_ext_And f1 f2) = GLs_ext_Or (GLs_syn_comp f1) (GLs_syn_comp f2)"
+|   "GLs_syn_comp (GLs_ext_Mod g f) = GLs_ext_Mod (GLs_syn_dual g) (GLs_syn_comp f)"
+|   "GLs_syn_dual (GLs_ext_Atm_Game a) = GLs_ext_Dual (GLs_ext_Atm_Game a)"
+|   "GLs_syn_dual (GLs_ext_Sabo a) = GLs_ext_DSabo a"
+|   "GLs_syn_dual (GLs_ext_DSabo a) = GLs_ext_Sabo a"   
+|   "GLs_syn_dual (GLs_ext_Dual g) = g"
+|   "GLs_syn_dual (GLs_ext_Test f) = GLs_ext_DTest f"
+|   "GLs_syn_dual (GLs_ext_Choice g1 g2) = GLs_ext_DChoice (GLs_syn_dual g1) (GLs_syn_dual g2)"
+|   "GLs_syn_dual (GLs_ext_DChoice g1 g2) = GLs_ext_Choice (GLs_syn_dual g1) (GLs_syn_dual g2)"
+|   "GLs_syn_dual (GLs_ext_DTest f) = GLs_ext_Test f"
+|   "GLs_syn_dual (GLs_ext_Seq g1 g2) = GLs_ext_Seq (GLs_syn_dual g1) (GLs_syn_dual g2)"
+|   "GLs_syn_dual (GLs_ext_Star g) = GLs_ext_Cross (GLs_syn_dual g)"
+|   "GLs_syn_dual (GLs_ext_Cross g) = GLs_ext_Cross (GLs_syn_dual g)"
+
 
 datatype 'c RGL_game =
   RGL_Atm_Game "Atm_game"

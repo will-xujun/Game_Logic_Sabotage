@@ -8,6 +8,7 @@ begin
 
 section \<open>Base defs: nbd structs, ground types, contexts, valuations\<close>
 
+type_synonym ground_type = "int"
 type_synonym 'a world_type = "'a set"
 type_synonym 'a sub_world_type = "'a set"
 type_synonym 'a eff_fn_type = "'a sub_world_type \<Rightarrow> 'a sub_world_type"
@@ -22,9 +23,6 @@ record ('a) Nbd_Struct =
   World :: "'a world_type"
   PropInterp :: "Atm_fml \<Rightarrow> 'a sub_world_type"
   GameInterp :: "Atm_game \<Rightarrow> 'a eff_fn_type"
-
-definition eff_fn_fam :: "'a Nbd_Struct \<Rightarrow> ('a eff_fn_type) set" where
-  "eff_fn_fam N = funcset (Pow (World N)) (Pow (World N))"
 
 \<comment>\<open>predicate to ensure monotone nbd structure is defined correctly.\<close>
 definition is_nbd_struct :: "'a Nbd_Struct \<Rightarrow> bool" where
@@ -45,6 +43,9 @@ definition Sab :: "int set" where
   "Sab = {-1,0,1}"
 
 type_synonym cx = "Atm_game \<Rightarrow> int"
+
+definition ALL_CX :: "(Atm_game \<Rightarrow> int) set" where
+"ALL_CX = \<int> \<rightarrow> Sab"
 
 definition is_cx :: "cx \<Rightarrow> bool" where
   "is_cx C \<equiv> \<forall>g::Atm_game. C g\<in>Sab"
@@ -105,6 +106,19 @@ lemma union_mono_strong: "\<forall>A. mono f \<Longrightarrow> mono (union2 f A)
   apply (auto)
   done
 
+definition lift_game_interp :: "ground_type Nbd_Struct \<Rightarrow> (Atm_game \<Rightarrow> GLs_ground_type eff_fn_type)" where
+"lift_game_interp N a (U:: (int\<times>(int \<Rightarrow> int)) set)
+  ={(w,c). (c a = 0) \<and> (w \<in> (GameInterp N) a (fst ` U)) \<or> (c a = 1) \<and> ((w,c)\<in> U)}"
+
+fun lift_prop_interp :: "ground_type Nbd_Struct \<Rightarrow> Atm_fml \<Rightarrow> GLs_ground_type sub_world_type" where
+"lift_prop_interp N P = (PropInterp N P) \<times> ALL_CX"
+
+fun GLs_lift_nbd :: "ground_type Nbd_Struct \<Rightarrow> GLs_ground_type Nbd_Struct" where
+  "GLs_lift_nbd N = \<lparr> World=(World N)\<times>ALL_CX , 
+    PropInterp = lift_prop_interp N,
+    GameInterp = lift_game_interp N 
+ \<rparr>"
+
 fun GLs_fml_sem :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_fml \<Rightarrow> GLs_sub_world_type"
  and GLs_game_sem :: "GLs_ground_type Nbd_Struct => GLs_game => GLs_eff_fn_type"
   where
@@ -119,6 +133,13 @@ fun GLs_fml_sem :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_fml \<Rightarro
 | "GLs_game_sem N (GLs_Choice a b) A = (GLs_game_sem N a A) \<union> (GLs_game_sem N b A)"
 | "GLs_game_sem N (GLs_Seq a b) A = GLs_game_sem N a (GLs_game_sem N b A)"
 | "GLs_game_sem N (GLs_Star a) A = lfp (\<lambda>B. A \<union> (GLs_game_sem N a B))"
+
+fun GLs_ext_fml_sem :: "ground_type Nbd_Struct \<Rightarrow> GLs_ext_fml \<Rightarrow> GLs_sub_world_type"
+  and GLs_ext_game_sem :: "ground_type Nbd_Struct \<Rightarrow> GLs_ext_game \<Rightarrow> GLs_eff_fn_type"
+  where
+  "GLs_ext_fml_sem N (GLs_ext_Atm_fml P) = "
+
+
 
 section \<open>The RGL extension of base \<close>
 type_synonym RGL_var_type = "int"
