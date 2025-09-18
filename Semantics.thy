@@ -161,7 +161,62 @@ fun GLs_ext_fml_sem :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_ext_fml \<R
 | "GLs_ext_game_sem N (GLs_ext_Star g) A = \<Inter> { B \<in> Pow (World N). A \<union> GLs_ext_game_sem N g B \<subseteq> B}"
 | "GLs_ext_game_sem N (GLs_ext_Cross g) A = \<Union> { B \<in> Pow (World N). B \<subseteq> A \<union> GLs_ext_game_sem N g B}"
 
-
+lemma GLs_syn_inversion_compat :
+  fixes N:: "GLs_ground_type Nbd_Struct"
+  and f:: "GLs_ext_fml"
+  and g:: "GLs_ext_game"
+assumes isStruct: "is_Nbd_Struct N"
+shows "GLs_ext_fml_sem N (GLs_syn_comp f) = sabo_comp N (GLs_ext_fml_sem N f)"
+   "GLs_ext_game_sem N (GLs_syn_dual g) A = GLs_dual_eff_fn N (GLs_ext_game_sem N g) A"
+proof (induction f and g)
+  case (GLs_ext_Atm_Game x)
+  then show ?case by (auto simp add:GLs_dual_eff_fn_def)
+next
+  case (GLs_ext_Sabo x)
+  then show ?case by (simp add:GLs_dual_eff_fn_def)
+next
+  case (GLs_ext_DSabo x)
+  then show ?case sorry
+next
+  case (GLs_ext_Dual x)
+  then show ?case sorry
+next
+  case (GLs_ext_Test x)
+  then show ?case sorry
+next
+  case (GLs_ext_Choice x1 x2)
+  then show ?case sorry
+next
+  case (GLs_ext_DChoice x1 x2)
+  then show ?case sorry
+next
+  case (GLs_ext_DTest x)
+  then show ?case sorry
+next
+  case (GLs_ext_Seq x1 x2)
+  then show ?case sorry
+next
+  case (GLs_ext_Star x)
+  then show ?case sorry
+next
+  case (GLs_ext_Cross x)
+  then show ?case sorry
+next
+  case (GLs_ext_Atm_fml x)
+  then show ?case sorry
+next
+  case (GLs_ext_Not x)
+  then show ?case sorry
+next
+  case (GLs_ext_Or x1 x2)
+  then show ?case sorry
+next
+  case (GLs_ext_And x1 x2)
+  then show ?case sorry
+next
+  case (GLs_ext_Mod x1 x2)
+  then show ?case sorry
+qed
 
 section \<open>The RGL extension of base \<close>
 type_synonym RGL_var_type = "int"
