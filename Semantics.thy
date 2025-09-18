@@ -67,15 +67,21 @@ type_synonym GLs_world_type = "GLs_ground_type world_type"
 type_synonym GLs_sub_world_type = "GLs_ground_type sub_world_type"
 type_synonym GLs_eff_fn_type = "GLs_sub_world_type \<Rightarrow> GLs_sub_world_type"
 
-definition sabo_compl :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_world_type \<Rightarrow> GLs_world_type" where
-  "sabo_compl N A = {(w,cx). (w,dual_cx cx)\<notin> A }"
+definition sabo_comp :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_world_type \<Rightarrow> GLs_world_type" where
+  "sabo_comp N A = {(w,cx)\<in> World N. (w, dual_cx cx) \<notin> A }"
 
 definition sabo_dual :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_eff_fn_type \<Rightarrow> GLs_eff_fn_type" where
-  "sabo_dual N f A = sabo_compl N (f (sabo_compl N A))"
+  "sabo_dual N f A = sabo_comp N (f (sabo_comp N A))"
 
 \<comment>\<open>function that substitutes atomic game "a" to Angelic control in context\<close>
 definition GLs_game_subst :: "GLs_sub_world_type \<Rightarrow> Atm_game \<Rightarrow> GLs_sub_world_type" where
   "GLs_game_subst A a = {(w,c). (w,(subst_cx c a 1)) \<in> A}"
+
+definition GLs_game_Dsubst :: "GLs_sub_world_type \<Rightarrow> Atm_game \<Rightarrow> GLs_sub_world_type" where
+  "GLs_game_Dsubst A a = {(w,c). (w,(subst_cx c a (-1))) \<in> A}"
+
+definition GLs_dual_eff_fn :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_eff_fn_type \<Rightarrow> GLs_eff_fn_type" where
+"GLs_dual_eff_fn N f A = sabo_comp N (f (sabo_comp N A))"
 
 definition union :: "'a set \<Rightarrow> 'a set \<Rightarrow> 'a set" where
   "union A B = A\<union>B"
@@ -134,10 +140,26 @@ fun GLs_fml_sem :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_fml \<Rightarro
 | "GLs_game_sem N (GLs_Seq a b) A = GLs_game_sem N a (GLs_game_sem N b A)"
 | "GLs_game_sem N (GLs_Star a) A = lfp (\<lambda>B. A \<union> (GLs_game_sem N a B))"
 
-fun GLs_ext_fml_sem :: "ground_type Nbd_Struct \<Rightarrow> GLs_ext_fml \<Rightarrow> GLs_sub_world_type"
-  and GLs_ext_game_sem :: "ground_type Nbd_Struct \<Rightarrow> GLs_ext_game \<Rightarrow> GLs_eff_fn_type"
+
+fun GLs_ext_fml_sem :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_ext_fml \<Rightarrow> GLs_sub_world_type"
+  and GLs_ext_game_sem :: "GLs_ground_type  Nbd_Struct \<Rightarrow> GLs_ext_game \<Rightarrow> GLs_eff_fn_type"
   where
-  "GLs_ext_fml_sem N (GLs_ext_Atm_fml P) = "
+  "GLs_ext_fml_sem N (GLs_ext_Atm_fml P) = (PropInterp N) P"
+| "GLs_ext_fml_sem N (GLs_ext_Not f) = sabo_comp N (GLs_ext_fml_sem N f)"
+| "GLs_ext_fml_sem N (GLs_ext_Or f1 f2) = (GLs_ext_fml_sem N f1) \<union> (GLs_ext_fml_sem N f2)"
+| "GLs_ext_fml_sem N (GLs_ext_And f1 f2) = (GLs_ext_fml_sem N f1) \<inter> (GLs_ext_fml_sem N f2)"
+| "GLs_ext_fml_sem N (GLs_ext_Mod g f) = GLs_ext_game_sem N g (GLs_ext_fml_sem N f)"
+| "GLs_ext_game_sem N (GLs_ext_Atm_Game a) A = (GameInterp N) a A"
+| "GLs_ext_game_sem N (GLs_ext_Sabo a) A = GLs_game_subst A a"
+| "GLs_ext_game_sem N (GLs_ext_DSabo a) A = GLs_game_Dsubst A a"
+| "GLs_ext_game_sem N (GLs_ext_Dual g) A = GLs_dual_eff_fn N (GLs_ext_game_sem N g) A"
+| "GLs_ext_game_sem N (GLs_ext_Test f) A = A \<inter> GLs_ext_fml_sem N f"
+| "GLs_ext_game_sem N (GLs_ext_DTest f) A = (sabo_comp N A) \<union> sabo_comp N (GLs_ext_fml_sem N f)"
+| "GLs_ext_game_sem N (GLs_ext_Choice g1 g2) A = GLs_ext_game_sem N g1 A \<union> GLs_ext_game_sem N g2 A"
+| "GLs_ext_game_sem N (GLs_ext_DChoice g1 g2) A = GLs_ext_game_sem N g1 A \<inter> GLs_ext_game_sem N g2 A"
+| "GLs_ext_game_sem N (GLs_ext_Seq g1 g2) A = GLs_ext_game_sem N g2 (GLs_ext_game_sem N g1 A)"
+| "GLs_ext_game_sem N (GLs_ext_Star g) A = \<Inter> { B \<in> Pow (World N). A \<union> GLs_ext_game_sem N g B \<subseteq> B}"
+| "GLs_ext_game_sem N (GLs_ext_Cross g) A = \<Union> { B \<in> Pow (World N). B \<subseteq> A \<union> GLs_ext_game_sem N g B}"
 
 
 
