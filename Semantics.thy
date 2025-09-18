@@ -29,9 +29,10 @@ definition eff_fn_fam :: "'a Nbd_Struct \<Rightarrow> ('a eff_fn_type) set" wher
 \<comment>\<open>predicate to ensure monotone nbd structure is defined correctly.\<close>
 definition is_nbd_struct :: "'a Nbd_Struct \<Rightarrow> bool" where
   "is_nbd_struct S \<equiv> 
-    (\<forall>g. mono (GameInterp S g))
-  \<and> ((\<forall>g. ( (GameInterp S g) \<in> ( funcset (World S) (World S) ) ))
-  \<and> (\<forall>p. (PropInterp S p) \<subseteq> (World S)))"
+    (World S \<noteq> {})
+  \<and> (\<forall>g. mono (GameInterp S g))
+  \<and> (\<forall>g. ( (GameInterp S g) \<in> carrier_of (World S) ))
+  \<and> (\<forall>p. (PropInterp S p) \<subseteq> (World S)) "
 
 \<comment>\<open>valuation\<close>
 type_synonym 'a val = "var_type \<Rightarrow> 'a eff_fn_type"
@@ -136,7 +137,7 @@ fun RGL_fml_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<
 | "RGL_fml_sem N I (RGL_Mod g fl) = (RGL_game_sem N I g) (RGL_fml_sem N I fl)"
 | "RGL_game_sem N I (RGL_Atm_Game a) A = GameInterp N a A"
 | "RGL_game_sem N I (RGL_Var x) A = I x A"
-| "RGL_game_sem N I (RGL_Dual g) A = (dual_eff_fn (World N) (RGL_game_sem N I g)) A"
+| "RGL_game_sem N I (RGL_Dual g) A = (dual_eff_fn N (RGL_game_sem N I g)) A"
 | "RGL_game_sem N I (RGL_Test fl) A = (RGL_fml_sem N I fl) \<inter> A"
 | "RGL_game_sem N I (RGL_Choice g1 g2) A = (RGL_game_sem N I g1 A) \<union> (RGL_game_sem N I g2 A)"
 | "RGL_game_sem N I (RGL_Seq g1 g2) A = ((RGL_game_sem N I g2) \<circ> (RGL_game_sem N I g1)) A"
@@ -222,16 +223,16 @@ fun RGL_ext_fml_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type va
 | "RGL_ext_fml_sem N I (RGL_ext_And fl1 fl2) = (RGL_ext_fml_sem N I fl1) \<inter> (RGL_ext_fml_sem N I fl2)"
 | "RGL_ext_fml_sem N I (RGL_ext_Mod g fl) = (RGL_ext_game_sem N I g) (RGL_ext_fml_sem N I fl)"
 | "RGL_ext_game_sem N I (RGL_ext_Atm_Game a) A = GameInterp N a A"
-| "RGL_ext_game_sem N I (RGL_ext_Atm_Game_Dual a) A = (dual_eff_fn (World N) (GameInterp N a)) A"
+| "RGL_ext_game_sem N I (RGL_ext_Atm_Game_Dual a) A = (dual_eff_fn N (GameInterp N a)) A"
 | "RGL_ext_game_sem N I (RGL_ext_Var x) A = I x A"
-| "RGL_ext_game_sem N I (RGL_ext_Var_Dual x) A = (dual_eff_fn (World N) (I x)) A"
+| "RGL_ext_game_sem N I (RGL_ext_Var_Dual x) A = (dual_eff_fn N (I x)) A"
 | "RGL_ext_game_sem N I (RGL_ext_Test fl) A = (RGL_ext_fml_sem N I fl) \<inter> A"
-| "RGL_ext_game_sem N I (RGL_ext_Test_Dual fl) A = (dual_eff_fn (World N) (inter (RGL_ext_fml_sem N I fl))) A"
+| "RGL_ext_game_sem N I (RGL_ext_Test_Dual fl) A = (dual_eff_fn N (inter (RGL_ext_fml_sem N I fl))) A"
 | "RGL_ext_game_sem N I (RGL_ext_Choice g1 g2) A = (RGL_ext_game_sem N I g1 A) \<union> (RGL_ext_game_sem N I g2 A)"
 | "RGL_ext_game_sem N I (RGL_ext_Choice_Dual g1 g2) A = (RGL_ext_game_sem N I g1 A) \<inter> (RGL_ext_game_sem N I g2 A)"
 | "RGL_ext_game_sem N I (RGL_ext_Seq g1 g2) A = ((RGL_ext_game_sem N I g2) \<circ> (RGL_ext_game_sem N I g1)) A"
-| "RGL_ext_game_sem N I (RGL_ext_Rec x g) A = (lfp (\<lambda>u. (RGL_ext_game_sem N (I(x:=u)) g))) A"
-| "RGL_ext_game_sem N I (RGL_ext_Rec_Dual x g) A = (gfp (\<lambda>u. (RGL_ext_game_sem N (I(x:=u)) g))) A"
+| "RGL_ext_game_sem N I (RGL_ext_Rec x g) A = (Lfp (World N) (\<lambda>u. (RGL_ext_game_sem N (I(x:=u)) g))) A"
+| "RGL_ext_game_sem N I (RGL_ext_Rec_Dual x g) A = (Gfp (World N) (\<lambda>u. (RGL_ext_game_sem N (I(x:=u)) g))) A"
 
 lemma RGL_ext_game_sem_wd :
   fixes N :: "RGL_ground_type Nbd_Struct"
@@ -243,7 +244,7 @@ assumes "is_nbd_struct N"
     " \<forall>A. A \<subseteq> (World N) \<longrightarrow> (RGL_ext_game_sem N I g) A \<subseteq> (World N)"
 proof (induction f and g arbitrary:A)
   case (RGL_ext_Atm_Game x)
-  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def carrier_of_def)
 next
   case (RGL_ext_Atm_Game_Dual x)
   then show ?case using assms by (auto simp add:is_nbd_struct_def dual_eff_fn_def)
@@ -273,8 +274,7 @@ next
   then show ?case
     apply simp
   proof -
-\<comment>\<open>lfp of an operator on functions\<close>
-    have "\<forall>u. \<forall>A\<subseteq> World N. u(A)\<subseteq> World N \<and> ((\<lambda>u. RGL_ext_game_sem N (I(x1 := u)) x2) u)(A)\<subseteq> World N"
+    
   qed
 next
   case (RGL_ext_Rec_Dual x1 x2)
