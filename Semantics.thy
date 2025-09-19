@@ -77,8 +77,32 @@ type_synonym GLs_world_type = "GLs_ground_type world_type"
 type_synonym GLs_sub_world_type = "GLs_ground_type sub_world_type"
 type_synonym GLs_eff_fn_type = "GLs_sub_world_type \<Rightarrow> GLs_sub_world_type"
 
+
+definition lift_game_interp :: "ground_type Nbd_Struct \<Rightarrow> (Atm_game \<Rightarrow> GLs_ground_type eff_fn_type)" where
+"lift_game_interp N a (U::(int\<times>(int \<Rightarrow> int)) set)
+  = (if U \<subseteq> World N \<times> ALL_CX 
+    then {(w,c)\<in> World N \<times> ALL_CX. (c a = 0) \<and> (w \<in> (GameInterp N) a (fst ` U)) \<or> (c a = 1) \<and> ((w,c)\<in> U)}
+    else {})"
+
+lemma lift_game_interp_comat :
+  fixes N :: "ground_type Nbd_Struct"
+  and a :: "Atm_game"
+assumes
+  "is_nbd_struct N"
+shows "lift_game_interp N a \<in> carrier_of (World N \<times> ALL_CX)"
+  by (auto simp add:carrier_of_def lift_game_interp_def extension_def)
+
+definition lift_prop_interp :: "ground_type Nbd_Struct \<Rightarrow> Atm_fml \<Rightarrow> GLs_ground_type sub_world_type" where
+"lift_prop_interp N P = (PropInterp N P) \<times> ALL_CX"
+
+definition GLs_lift_nbd :: "ground_type Nbd_Struct \<Rightarrow> GLs_ground_type Nbd_Struct" where
+  "GLs_lift_nbd N = \<lparr> World=(World N)\<times>ALL_CX , 
+    PropInterp = lift_prop_interp N,
+    GameInterp = lift_game_interp N 
+ \<rparr>"
+
 definition sabo_comp :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_world_type \<Rightarrow> GLs_world_type" where
-  "sabo_comp N A = {(w,cx)\<in> World N. (w, dual_cx cx) \<notin> A }"
+  "sabo_comp N A = (if A \<subseteq> World N then {(w,cx)\<in> World N. (w, dual_cx cx) \<notin> A } else {})"
 
 definition sabo_dual :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_eff_fn_type \<Rightarrow> GLs_eff_fn_type" where
   "sabo_dual N f A = sabo_comp N (f (sabo_comp N A))"
@@ -92,6 +116,19 @@ definition GLs_game_Dsubst :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_sub_
 
 definition GLs_dual_eff_fn :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_eff_fn_type \<Rightarrow> GLs_eff_fn_type" where
 "GLs_dual_eff_fn N f A = sabo_comp N (f (sabo_comp N A))"
+
+lemma GLs_dual_eff_fn_compat:
+  fixes N :: "ground_type Nbd_Struct"
+    and f :: "GLs_eff_fn_type"
+  assumes "is_nbd_struct N" "f\<in> carrier_of (World N\<times> ALL_CX)" 
+  shows "(GLs_dual_eff_fn (GLs_lift_nbd N) f) \<in> carrier_of (World N \<times> ALL_CX)"
+  apply (auto simp add:carrier_of_def GLs_lift_nbd_def GLs_dual_eff_fn_def sabo_comp_def)
+    apply (metis (no_types, lifting) Nbd_Struct.select_convs(1) empty_def mem_Collect_eq mem_Sigma_iff old.prod.case)
+   apply (metis (no_types, lifting) Nbd_Struct.select_convs(1) SigmaD2 empty_def mem_Collect_eq old.prod.case)
+  apply (auto simp add:extension_def GLs_dual_eff_fn_def)
+proof -
+   
+qed
 
 definition union :: "'a set \<Rightarrow> 'a set \<Rightarrow> 'a set" where
   "union A B = A\<union>B"
@@ -122,18 +159,6 @@ lemma union_mono_strong: "\<forall>A. mono f \<Longrightarrow> mono (union2 f A)
   apply (auto)
   done
 
-definition lift_game_interp :: "ground_type Nbd_Struct \<Rightarrow> (Atm_game \<Rightarrow> GLs_ground_type eff_fn_type)" where
-"lift_game_interp N a (U:: (int\<times>(int \<Rightarrow> int)) set)
-  ={(w,c). (c a = 0) \<and> (w \<in> (GameInterp N) a (fst ` U)) \<or> (c a = 1) \<and> ((w,c)\<in> U)}"
-
-definition lift_prop_interp :: "ground_type Nbd_Struct \<Rightarrow> Atm_fml \<Rightarrow> GLs_ground_type sub_world_type" where
-"lift_prop_interp N P = (PropInterp N P) \<times> ALL_CX"
-
-definition GLs_lift_nbd :: "ground_type Nbd_Struct \<Rightarrow> GLs_ground_type Nbd_Struct" where
-  "GLs_lift_nbd N = \<lparr> World=(World N)\<times>ALL_CX , 
-    PropInterp = lift_prop_interp N,
-    GameInterp = lift_game_interp N 
- \<rparr>"
 
 lemma sab_negate_compat : "a\<in>Sab \<Longrightarrow> -a\<in>Sab" by (auto simp add:Sab_def)
 
@@ -156,6 +181,14 @@ proof -
   show "\<And>a b. (a, b) \<in> A \<Longrightarrow> b \<in> ALL_CX" using assms by auto
   show "\<And>a b. (a, b) \<in> A \<Longrightarrow> - b \<in> ALL_CX \<Longrightarrow> a \<in> World N \<Longrightarrow> (a, - (- b)) \<in> A"
     by (simp add: fun_Compl_def)
+  show "\<And>a b aa ba. (a, b) \<in> A \<Longrightarrow> (aa, ba) \<in> A \<Longrightarrow> a \<notin> World N \<Longrightarrow> aa \<in> World N"
+    using \<open>\<And>b a. (a, b) \<in> A \<Longrightarrow> a \<in> World N\<close> by blast
+  show "\<And>a b aa ba. (a, b) \<in> A \<Longrightarrow> (aa, ba) \<in> A \<Longrightarrow> a \<notin> World N \<Longrightarrow> ba \<in> ALL_CX"
+    using \<open>\<And>b a. (a, b) \<in> A \<Longrightarrow> a \<in> World N\<close> by blast
+  show "\<And>a b aa ba. (a, b) \<in> A \<Longrightarrow> (aa, ba) \<in> A \<Longrightarrow> b \<notin> ALL_CX \<Longrightarrow> aa \<in> World N"
+    using \<open>\<And>b a. (a, b) \<in> A \<Longrightarrow> a \<in> World N\<close> by auto
+  show "\<And>a b aa ba. (a, b) \<in> A \<Longrightarrow> (aa, ba) \<in> A \<Longrightarrow> b \<notin> ALL_CX \<Longrightarrow> ba \<in> ALL_CX "
+  using \<open>\<And>b a. (a, b) \<in> A \<Longrightarrow> b \<in> ALL_CX\<close> by blast
 qed
 
 fun GLs_fml_sem :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_fml \<Rightarrow> GLs_sub_world_type"
@@ -200,53 +233,122 @@ lemma cx_double_neg :
 lemma cx_neg_sub:
   assumes "c\<in> ALL_CX" shows "- (subst_cx c x t) = subst_cx (-c) x (-t)" by (auto simp add:subst_cx_def)
 
+lemma cx_double_dual : 
+  assumes "c\<in> ALL_CX" shows "dual_cx (dual_cx c) = c" using assms by (auto simp add:dual_cx_def)
+
+lemma GLs_eff_fn_double_dual : 
+  assumes "A \<subseteq> World N \<times> ALL_CX"
+        "f \<in> Pow (World N \<times> ALL_CX) \<rightarrow> Pow (World N \<times> ALL_CX)"
+  shows "GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_dual_eff_fn (GLs_lift_nbd N) f) A = f A"
+  apply (simp add:GLs_dual_eff_fn_def sabo_dbl_comp assms)
+proof -
+  have "f A\<in> Pow (World N\<times> ALL_CX)" using assms by auto
+  then show "sabo_comp (GLs_lift_nbd N) (sabo_comp (GLs_lift_nbd N) (f A)) = f A"
+    by (simp add:sabo_dbl_comp assms GLs_dual_eff_fn_def)
+qed
+
+lemma GLs_sem_wd:
+  fixes N:: "ground_type Nbd_Struct"
+  and f:: "GLs_ext_fml"
+  and g:: "GLs_ext_game"
+  and A:: "GLs_ground_type set"
+assumes isStruct: "is_nbd_struct N"
+  and isStructlift: "is_nbd_struct (GLs_lift_nbd N)"
+  and A_wd: "A \<subseteq> World N \<times> ALL_CX"
+shows "GLs_ext_fml_sem (GLs_lift_nbd N) f \<subseteq> World N\<times> ALL_CX"
+  "GLs_ext_game_sem (GLs_lift_nbd N) g A \<subseteq> (World N \<times> ALL_CX)"
+proof (induction f and g)
+  case (GLs_ext_Atm_Game x)
+  then show ?case
+    using assms apply (simp add:is_nbd_struct_def GLs_lift_nbd_def lift_game_interp_comat carrier_of_def)
+    by blast
+next
+  case (GLs_ext_Sabo x)
+  then show ?case 
+    using assms apply (simp add:is_nbd_struct_def GLs_lift_nbd_def GLs_game_subst_def subst_cx_compat lift_game_interp_comat carrier_of_def)
+    by blast
+next
+  case (GLs_ext_DSabo x)
+  then show ?case
+    using assms apply (simp add:is_nbd_struct_def GLs_lift_nbd_def GLs_game_Dsubst_def subst_cx_compat lift_game_interp_comat carrier_of_def)
+    by blast    
+next
+  case (GLs_ext_Dual x)
+  then show ?case
+    using assms apply (simp add:is_nbd_struct_def  GLs_game_Dsubst_def subst_cx_compat lift_game_interp_comat carrier_of_def)
+    
+next
+  case (GLs_ext_Test x)
+  then show ?case sorry
+next
+  case (GLs_ext_Choice x1 x2)
+  then show ?case sorry
+next
+  case (GLs_ext_DChoice x1 x2)
+  then show ?case sorry
+next
+  case (GLs_ext_DTest x)
+  then show ?case sorry
+next
+  case (GLs_ext_Seq x1 x2)
+  then show ?case sorry
+next
+  case (GLs_ext_Star x)
+  then show ?case sorry
+next
+  case (GLs_ext_Cross x)
+  then show ?case sorry
+next
+  case (GLs_ext_Atm_fml x)
+  then show ?case sorry
+next
+  case (GLs_ext_Not x)
+  then show ?case sorry
+next
+  case (GLs_ext_Or x1 x2)
+  then show ?case sorry
+next
+  case (GLs_ext_And x1 x2)
+  then show ?case sorry
+next
+  case (GLs_ext_Mod x1 x2)
+  then show ?case sorry
+qed
+
 lemma GLs_syn_inversion_compat :
   fixes N:: "ground_type Nbd_Struct"
   and f:: "GLs_ext_fml"
   and g:: "GLs_ext_game"
+  and A:: "GLs_ground_type set"
 assumes isStruct: "is_nbd_struct N"
   and isStructlift: "is_nbd_struct (GLs_lift_nbd N)"
+  and A_wd: "A\<subseteq> World N \<times> ALL_CX"
 shows "GLs_ext_fml_sem (GLs_lift_nbd N) (GLs_syn_comp f) = sabo_comp (GLs_lift_nbd N) (GLs_ext_fml_sem (GLs_lift_nbd N) f)"
-   "GLs_ext_game_sem (GLs_lift_nbd N) (GLs_syn_dual g) = GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) g)"
+   "GLs_ext_game_sem (GLs_lift_nbd N) (GLs_syn_dual g) A = GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) g) A"
 proof (induction f and g)
   case (GLs_ext_Atm_Game x)
   then show ?case by (auto simp add: GLs_dual_eff_fn_def )
 next
   case (GLs_ext_Sabo x)
   then show ?case
-    apply (auto simp add: isStructlift
-       GLs_lift_nbd_def  GLs_dual_eff_fn_def sabo_comp_def dual_cx_def GLs_game_subst_def GLs_game_Dsubst_def)
-    apply (rule)
-  proof
-    fix xa show " {(w, c). w \<in> World N \<and> c \<in> ALL_CX \<and> (w, subst_cx c x (- 1)) \<in> xa}
-          \<subseteq> {(w, cx). w \<in> World N \<and> cx \<in> ALL_CX \<and> (subst_cx (- cx) x 1 \<in> ALL_CX \<longrightarrow> w \<in> World N \<longrightarrow> - cx \<in> ALL_CX \<longrightarrow> (w, - subst_cx (- cx) x 1) \<in> xa)}"
-      by (auto simp add:cx_double_neg)
-    fix xa show "{(w, cx). w \<in> World N \<and> cx \<in> ALL_CX \<and> (subst_cx (- cx) x 1 \<in> ALL_CX \<longrightarrow> w \<in> World N \<longrightarrow> - cx \<in> ALL_CX \<longrightarrow> (w, - subst_cx (- cx) x 1) \<in> xa)}
-          \<subseteq> {(w, c). w \<in> World N \<and> c \<in> ALL_CX \<and> (w, subst_cx c x (- 1)) \<in> xa}  "
-      by (auto simp add:cx_double_neg cx_negate_compat subst_cx_compat)
-  qed
+    by (auto simp add: assms
+       GLs_lift_nbd_def  GLs_dual_eff_fn_def sabo_comp_def dual_cx_def GLs_game_subst_def GLs_game_Dsubst_def
+      cx_double_neg subst_cx_compat cx_negate_compat)
 next
   case (GLs_ext_DSabo x)
   then show ?case
-    apply (auto simp add: isStructlift
-    GLs_lift_nbd_def  GLs_dual_eff_fn_def sabo_comp_def dual_cx_def GLs_game_subst_def GLs_game_Dsubst_def)
-    apply rule
-  proof - fix xa show "{(w, c). w \<in> World N \<and> c \<in> ALL_CX \<and> (w, subst_cx c x 1) \<in> xa} =
-          {(w, cx). w \<in> World N \<and> cx \<in> ALL_CX \<and> (subst_cx (- cx) x (- 1) \<in> ALL_CX \<longrightarrow> w \<in> World N \<longrightarrow> - cx \<in> ALL_CX \<longrightarrow> (w, - subst_cx (- cx) x (- 1)) \<in> xa)}"
-      apply (auto simp add: isStructlift ALL_CX_def
-    GLs_lift_nbd_def  GLs_dual_eff_fn_def sabo_comp_def dual_cx_def GLs_game_subst_def GLs_game_Dsubst_def)
-    proof (metis (lifting) ext ALL_CX_def cx_neg_sub uminus_apply verit_minus_simplify(4))
-      fix a b xb show " a \<in> World N \<Longrightarrow> b \<in> \<int> \<rightarrow> Sab \<Longrightarrow> xb \<in> \<int> \<Longrightarrow> subst_cx (- b) x (- 1) xb \<notin> Sab \<Longrightarrow> (a, subst_cx b x 1) \<in> xa"
-        by (metis ALL_CX_def Pi_mem cx_negate_compat subst_cx_compat)
-      fix a b xb show "a \<in> World N \<Longrightarrow> b \<in> \<int> \<rightarrow> Sab \<Longrightarrow> xb \<in> \<int> \<Longrightarrow> - b xb \<notin> Sab \<Longrightarrow> (a, subst_cx b x 1) \<in> xa"
-        by (metis Pi_mem sab_negate_compat)
-      fix a b show "a \<in> World N \<Longrightarrow> b \<in> \<int> \<rightarrow> Sab \<Longrightarrow> (a, - subst_cx (- b) x (- 1)) \<in> xa \<Longrightarrow> (a, subst_cx b x 1) \<in> xa"
-        by (metis (lifting) ext ALL_CX_def cx_neg_sub uminus_apply verit_minus_simplify(4))
-    qed
-  qed
+    apply (auto simp add: assms
+       GLs_lift_nbd_def  GLs_dual_eff_fn_def sabo_comp_def dual_cx_def GLs_game_subst_def GLs_game_Dsubst_def
+      cx_double_neg subst_cx_compat cx_negate_compat)
+    using cx_double_dual dual_cx_def subst_cx_compat apply force
+    using cx_double_dual dual_cx_def subst_cx_compat by force
 next
   case (GLs_ext_Dual x)
-  then show ?case sorry
+  then show ?case
+    using assms apply simp
+  proof
+    
+  qed  
 next
   case (GLs_ext_Test x)
   then show ?case sorry
