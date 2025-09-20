@@ -120,15 +120,12 @@ definition GLs_dual_eff_fn :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_eff_
 lemma GLs_dual_eff_fn_compat:
   fixes N :: "ground_type Nbd_Struct"
     and f :: "GLs_eff_fn_type"
-  assumes "is_nbd_struct N" "f\<in> carrier_of (World N\<times> ALL_CX)" 
-  shows "(GLs_dual_eff_fn (GLs_lift_nbd N) f) \<in> carrier_of (World N \<times> ALL_CX)"
+  assumes "is_nbd_struct N" "f\<in> Pow (World N \<times> ALL_CX) \<rightarrow> Pow (World N\<times> ALL_CX)" 
+  shows "(GLs_dual_eff_fn (GLs_lift_nbd N) f) \<in> Pow (World N \<times> ALL_CX) \<rightarrow> Pow (World N\<times> ALL_CX)"
   apply (auto simp add:carrier_of_def GLs_lift_nbd_def GLs_dual_eff_fn_def sabo_comp_def)
     apply (metis (no_types, lifting) Nbd_Struct.select_convs(1) empty_def mem_Collect_eq mem_Sigma_iff old.prod.case)
    apply (metis (no_types, lifting) Nbd_Struct.select_convs(1) SigmaD2 empty_def mem_Collect_eq old.prod.case)
-  apply (auto simp add:extension_def GLs_dual_eff_fn_def)
-proof -
-   
-qed
+  done
 
 definition union :: "'a set \<Rightarrow> 'a set \<Rightarrow> 'a set" where
   "union A B = A\<union>B"
@@ -251,12 +248,10 @@ lemma GLs_sem_wd:
   fixes N:: "ground_type Nbd_Struct"
   and f:: "GLs_ext_fml"
   and g:: "GLs_ext_game"
-  and A:: "GLs_ground_type set"
 assumes isStruct: "is_nbd_struct N"
   and isStructlift: "is_nbd_struct (GLs_lift_nbd N)"
-  and A_wd: "A \<subseteq> World N \<times> ALL_CX"
 shows "GLs_ext_fml_sem (GLs_lift_nbd N) f \<subseteq> World N\<times> ALL_CX"
-  "GLs_ext_game_sem (GLs_lift_nbd N) g A \<subseteq> (World N \<times> ALL_CX)"
+  "\<forall>A \<subseteq> (World N\<times> ALL_CX). GLs_ext_game_sem (GLs_lift_nbd N) g A \<subseteq> (World N \<times> ALL_CX)"
 proof (induction f and g)
   case (GLs_ext_Atm_Game x)
   then show ?case
@@ -275,44 +270,57 @@ next
 next
   case (GLs_ext_Dual x)
   then show ?case
-    using assms apply (simp add:is_nbd_struct_def  GLs_game_Dsubst_def subst_cx_compat lift_game_interp_comat carrier_of_def)
-    
+  proof -
+    assume P:"\<forall>A\<subseteq>World N \<times> ALL_CX. GLs_ext_game_sem (GLs_lift_nbd N) x A \<subseteq> World N \<times> ALL_CX"
+    show "\<forall>A\<subseteq>World N \<times> ALL_CX. GLs_ext_game_sem (GLs_lift_nbd N) (GLs_ext_Dual x) A \<subseteq> World N \<times> ALL_CX"
+      apply auto
+    proof -
+      have "GLs_ext_game_sem (GLs_lift_nbd N) x \<in> Pow (World N\<times>ALL_CX) \<rightarrow> Pow (World N\<times>ALL_CX)"
+        using P by auto
+      then have Q:"GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) x)\<in>Pow (World N\<times>ALL_CX) \<rightarrow> Pow (World N\<times>ALL_CX)"
+        using GLs_dual_eff_fn_compat assms by auto
+      then show "\<And>A a b. A \<subseteq> World N \<times> ALL_CX \<Longrightarrow> (a, b) \<in> GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) x) A \<Longrightarrow> a \<in> World N" by auto
+      from Q show
+        "\<And>A a b. A \<subseteq> World N \<times> ALL_CX \<Longrightarrow> (a, b) \<in> GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) x) A \<Longrightarrow> b \<in> ALL_CX" by auto
+    qed
+  qed
 next
   case (GLs_ext_Test x)
-  then show ?case sorry
+  then show ?case by auto
 next
   case (GLs_ext_Choice x1 x2)
-  then show ?case sorry
+  then show ?case by simp
 next
   case (GLs_ext_DChoice x1 x2)
-  then show ?case sorry
+  then show ?case by auto
 next
   case (GLs_ext_DTest x)
-  then show ?case sorry
+  then show ?case by (auto simp add: GLs_lift_nbd_def sabo_comp_def)
 next
   case (GLs_ext_Seq x1 x2)
-  then show ?case sorry
+  then show ?case by simp
 next
   case (GLs_ext_Star x)
-  then show ?case sorry
+  then show ?case by (simp add: GLs_lift_nbd_def Inter_lower)
 next
   case (GLs_ext_Cross x)
-  then show ?case sorry
+  then show ?case
+    by (simp add: GLs_lift_nbd_def Sup_le_iff)
 next
   case (GLs_ext_Atm_fml x)
-  then show ?case sorry
+  then show ?case using assms by (simp add:is_nbd_struct_def GLs_lift_nbd_def)
 next
   case (GLs_ext_Not x)
-  then show ?case sorry
+  then show ?case by (auto simp add:GLs_lift_nbd_def sabo_comp_def)
 next
   case (GLs_ext_Or x1 x2)
-  then show ?case sorry
+  then show ?case by simp
 next
   case (GLs_ext_And x1 x2)
-  then show ?case sorry
+  then show ?case using GLs_ext_fml_sem.simps(4) by blast
 next
   case (GLs_ext_Mod x1 x2)
-  then show ?case sorry
+  then show ?case by auto
 qed
 
 lemma GLs_syn_inversion_compat :
