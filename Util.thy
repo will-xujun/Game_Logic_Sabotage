@@ -19,6 +19,9 @@ definition extension_fn :: "('a set \<Rightarrow> 'a set) set \<Rightarrow> (('a
 definition carrier_of :: "'a set \<Rightarrow> ('a set\<Rightarrow> 'a set) set" where
   "carrier_of A = (Pow A\<rightarrow>Pow A) \<inter> extension (Pow A)"
 
+definition mono_of :: "'a set \<Rightarrow> ('a set \<Rightarrow> 'a set) set" where
+  "mono_of A = {f.  \<forall>x y. x\<subseteq>A \<and> y\<subseteq>A \<and> x \<subseteq> y \<longrightarrow> f x \<subseteq> f y}"
+
 definition monotone_op_of ::"'a set \<Rightarrow> ( ('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set) ) set" where
   "monotone_op_of A = ((Pow A \<rightarrow> Pow A) \<rightarrow> (carrier_of A)) "
 
