@@ -74,7 +74,7 @@ fun GLs_syn_comp :: "GLs_ext_fml \<Rightarrow> GLs_ext_fml"
 |   "GLs_syn_dual (GLs_ext_DTest f) = GLs_ext_Test f"
 |   "GLs_syn_dual (GLs_ext_Seq g1 g2) = GLs_ext_Seq (GLs_syn_dual g1) (GLs_syn_dual g2)"
 |   "GLs_syn_dual (GLs_ext_Star g) = GLs_ext_Cross (GLs_syn_dual g)"
-|   "GLs_syn_dual (GLs_ext_Cross g) = GLs_ext_Cross (GLs_syn_dual g)"
+|   "GLs_syn_dual (GLs_ext_Cross g) = GLs_ext_Star (GLs_syn_dual g)"
 
 datatype 'c RGL_game =
   RGL_Atm_Game "Atm_game"

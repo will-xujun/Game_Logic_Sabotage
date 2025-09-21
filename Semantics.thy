@@ -696,7 +696,56 @@ next
   qed
 next
   case (GLs_ext_Cross x)
-  then show ?case sorry
+  then show ?case 
+  proof -
+    assume P1:"\<forall>A\<subseteq>World N \<times> ALL_CX. GLs_ext_game_sem (GLs_lift_nbd N) (GLs_syn_dual x) A = GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) x) A"
+    show "\<forall>A\<subseteq>World N \<times> ALL_CX. GLs_ext_game_sem (GLs_lift_nbd N) (GLs_syn_dual (GLs_ext_Cross x)) A = GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) (GLs_ext_Cross x)) A"
+      apply rule
+    proof
+      fix A assume P0:"A\<subseteq> World N\<times>ALL_CX"
+      show "GLs_ext_game_sem (GLs_lift_nbd N) (GLs_syn_dual (GLs_ext_Cross x)) A = GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) (GLs_ext_Cross x)) A"
+        apply (simp add:GLs_dual_eff_fn_def)
+      proof -
+        let ?LHS = "ambient_inter (World (GLs_lift_nbd N)) {B. B \<subseteq> World (GLs_lift_nbd N) \<and> A \<subseteq> B \<and> GLs_ext_game_sem (GLs_lift_nbd N) (GLs_syn_dual x) B \<subseteq> B}"
+        let ?RHS = "sabo_comp (GLs_lift_nbd N) (\<Union> {B. B \<subseteq> World (GLs_lift_nbd N) \<and> B \<subseteq> sabo_comp (GLs_lift_nbd N) A \<and> B \<subseteq> GLs_ext_game_sem (GLs_lift_nbd N) x B})"
+
+        let ?o = "{B. B \<subseteq> World (GLs_lift_nbd N) \<and> B \<subseteq> sabo_comp (GLs_lift_nbd N) A \<and> B \<subseteq> GLs_ext_game_sem (GLs_lift_nbd N) x B}"
+        have "?o \<subseteq> Pow (World (GLs_lift_nbd N))" by auto
+        then have "?RHS = ambient_inter (World (GLs_lift_nbd N)) {sabo_comp (GLs_lift_nbd N) B|B. B \<subseteq> World (GLs_lift_nbd N) \<and> B \<subseteq> sabo_comp (GLs_lift_nbd N) A \<and> B \<subseteq> GLs_ext_game_sem (GLs_lift_nbd N) x B}"
+          using sabo_comp_dm_general_orand[of "?o" "GLs_lift_nbd N"] by auto 
+        also have "... = ambient_inter (World (GLs_lift_nbd N)) {B|B. B \<subseteq> World (GLs_lift_nbd N) 
+                \<and>  sabo_comp (GLs_lift_nbd N) B \<subseteq> sabo_comp (GLs_lift_nbd N) A 
+                \<and> sabo_comp (GLs_lift_nbd N) B \<subseteq> GLs_ext_game_sem (GLs_lift_nbd N) x (sabo_comp (GLs_lift_nbd N) B)}"
+          using set_sabo_comp2 sabo_dbl_comp
+          by (metis (lifting) GLs_lift_nbd_def Nbd_Struct.select_convs(1) sabo_comp_compat)
+        also have "... = ambient_inter (World (GLs_lift_nbd N)) {B|B. B \<subseteq> World (GLs_lift_nbd N) 
+                \<and>  A \<subseteq> B
+                \<and> sabo_comp (GLs_lift_nbd N) B \<subseteq> GLs_ext_game_sem (GLs_lift_nbd N) x (sabo_comp (GLs_lift_nbd N) B)}"
+          using sabo_comp_homo sabo_dbl_comp
+          by (metis (lifting) GLs_lift_nbd_def Nbd_Struct.select_convs(1) P0)
+        finally have R1: "?RHS = ambient_inter (World (GLs_lift_nbd N)) {B|B. B \<subseteq> World (GLs_lift_nbd N) 
+                \<and>  A \<subseteq> B
+                \<and> sabo_comp (GLs_lift_nbd N) B \<subseteq> GLs_ext_game_sem (GLs_lift_nbd N) x (sabo_comp (GLs_lift_nbd N) B)}" by auto
+        
+        from P1 have L1: "?LHS = ambient_inter (World (GLs_lift_nbd N)) {B. B \<subseteq> World (GLs_lift_nbd N) \<and> A \<subseteq> B \<and> GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) x) B \<subseteq> B}"
+          by (metis GLs_lift_nbd_def Nbd_Struct.select_convs(1))
+        also have "... = ambient_inter (World (GLs_lift_nbd N)) {B. B \<subseteq> World (GLs_lift_nbd N) 
+            \<and> A \<subseteq> B 
+            \<and> sabo_comp (GLs_lift_nbd N) ((GLs_ext_game_sem (GLs_lift_nbd N) x) (sabo_comp (GLs_lift_nbd N) B)) \<subseteq> B}"
+          using GLs_dual_eff_fn_def by auto
+        also have "... = ambient_inter (World (GLs_lift_nbd N)) {B. B \<subseteq> World (GLs_lift_nbd N) 
+            \<and> A \<subseteq> B 
+            \<and> sabo_comp (GLs_lift_nbd N) B \<subseteq> GLs_ext_game_sem (GLs_lift_nbd N) x (sabo_comp (GLs_lift_nbd N) B)}"
+          using sabo_dbl_comp sabo_comp_homo
+          by (metis (no_types, lifting) GLs_lift_nbd_def GLs_sem_wd(2) Nbd_Struct.select_convs(1) isStruct sabo_comp_compat)
+        finally have L2:"?LHS = ambient_inter (World (GLs_lift_nbd N)) {B. B \<subseteq> World (GLs_lift_nbd N) 
+            \<and> A \<subseteq> B 
+            \<and> sabo_comp (GLs_lift_nbd N) B \<subseteq> GLs_ext_game_sem (GLs_lift_nbd N) x (sabo_comp (GLs_lift_nbd N) B)}" by auto
+
+         from R1 L2 show "?LHS = ?RHS" by auto
+      qed
+    qed
+  qed
 next
   case (GLs_ext_Atm_fml x)
   then show ?case by auto
