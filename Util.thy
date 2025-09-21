@@ -4,6 +4,9 @@ theory Util
 begin
 
 \<comment>\<open>A non-locale implementation of LFP and GFP of functions based on FuncSet\<close>
+definition ambient_inter :: "'a set \<Rightarrow> ('a set) set \<Rightarrow> 'a set" where
+"ambient_inter U F = {x\<in>U. \<forall>A\<in>F. x\<in>A}"
+
 definition fun_le :: "('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set) \<Rightarrow> bool" where
 "fun_le f g = (\<forall>x. f x \<subseteq> g x)"
 
