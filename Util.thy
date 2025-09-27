@@ -25,14 +25,18 @@ definition carrier_of :: "'a set \<Rightarrow> ('a set\<Rightarrow> 'a set) set"
 definition mono_of :: "'a set \<Rightarrow> ('a set \<Rightarrow> 'a set) set" where
   "mono_of A = {f.  \<forall>x y. x\<subseteq>A \<and> y\<subseteq>A \<and> x \<subseteq> y \<longrightarrow> f x \<subseteq> f y}"
 
+definition effective_fn_of :: "'a set \<Rightarrow> ('a set \<Rightarrow> 'a set) set" where
+  "effective_fn_of A = (Pow A\<rightarrow>Pow A) \<inter> mono_of A"
+
 definition monotone_op_of ::"'a set \<Rightarrow> ( ('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set) ) set" where
-  "monotone_op_of A = ((Pow A \<rightarrow> Pow A) \<rightarrow> (carrier_of A)) "
+  "monotone_op_of A = (effective_fn_of A \<rightarrow> effective_fn_of A)
+  \<inter> {F. \<forall>g1\<in>effective_fn_of A. \<forall>g2\<in> effective_fn_of A. fun_le g1 g2 \<longrightarrow> fun_le (F g1) (F g2)}"
 
 definition Lfp_family :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set)) \<Rightarrow> ('a set \<Rightarrow> 'a set) set" where
   "Lfp_family A f = {\<phi>. \<phi>\<in> carrier_of A \<and> fun_le (f \<phi>) \<phi>}"
 
 definition Lfp :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set)) \<Rightarrow> ('a set \<Rightarrow> 'a set)" where
-  "Lfp w f a = \<Inter>{\<phi> a | \<phi>. \<phi> \<in> Lfp_family w f}"
+  "Lfp w f a = ambient_inter w {\<phi> a | \<phi>. \<phi> \<in> Lfp_family w f}"
 
 definition max_of :: "'a set \<Rightarrow> ('a set \<Rightarrow> 'a set)" where
   "max_of A x = (if x\<subseteq>A then A else {})"
