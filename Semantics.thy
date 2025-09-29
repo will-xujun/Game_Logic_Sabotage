@@ -817,14 +817,14 @@ next
   by (metis GLs_dual_eff_fn_def GLs_ext_fml_sem.simps(5) GLs_sem_wd(1) GLs_syn_comp.simps(5) isStruct sabo_dbl_comp)
 qed
 
-section \<open>The RGL extension of base \<close>
+section \<open>The RGL extension of base, with world structure un-modified\<close>
 type_synonym RGL_var_type = "int"
 type_synonym RGL_ground_type = "int"
 type_synonym RGL_world_type = "RGL_ground_type world_type"
 type_synonym RGL_sub_world_type = "RGL_ground_type sub_world_type"
 type_synonym RGL_eff_fn_type = "RGL_sub_world_type \<Rightarrow> RGL_sub_world_type"
 
-\<comment>\<open>No modification to the base\<close>
+\<comment>\<open>RGL semantics\<close>
 fun RGL_fml_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type RGL_fml \<Rightarrow> RGL_sub_world_type"
   and RGL_game_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type RGL_game \<Rightarrow> RGL_eff_fn_type"
   where
@@ -933,10 +933,133 @@ fun RGL_ext_fml_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type va
 definition RGL_interp_subst_op :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type \<Rightarrow> RGL_var_type RGL_ext_game \<Rightarrow> RGL_eff_fn_type \<Rightarrow> RGL_eff_fn_type" where
   "RGL_interp_subst_op N I x g u = RGL_ext_game_sem N (I(x:=u)) g"
 
-lemma RGL_interp_subst_is_monotone_op: 
-  assumes "is_nbd_struct N" and "is_val N I"
-  shows "RGL_interp_subst_op N I x g \<in> monotone_op_of (World N)"
-proof (induction g)
+\<comment>\<open>Tests whether an RGL formula is closed\<close>
+fun RGL_is_closed :: "RGL_ground_type RGL_ext_fml \<Rightarrow> bool" where
+  "RGL_is_closed (RGL_ext_Atm_fml a) = True"
+| "RGL_is_closed (RGL_ext_Not f) = RGL_is_closed f"
+| "RGL_is_closed (RGL_ext_Or f1 f2) = (RGL_is_closed f1 \<and> RGL_is_closed f2)"
+| "RGL_is_closed (RGL_ext_And f1 f2) = (RGL_is_closed f1 \<and> RGL_is_closed f2)"
+| "RGL_is_closed (RGL_ext_Mod g f) = False"
+
+\<comment>\<open>An RGL game is in normal form if 1) ?\<phi> for closed \<phi> only; 2)rx.\<alpha>
+  only has x occurring in a scope with even number of duals in \<alpha>. 
+  Hence all are in normal form except in the negation of these cases;
+  hence we only need to worry about the forms ? and r.
+\<close>
+
+\<comment>\<open>This function tests if the given game contains x with ALL even number of duals.
+  For ?\<phi>, it is assumed that \<phi> never contains modality. so auto true.
+  For Rec y g, if the tested variable x equals y, then x occurring in g does not belong to the current scope.
+  
+\<close>
+primrec RGL_is_even_dual :: "bool \<Rightarrow> RGL_var_type \<Rightarrow> RGL_ground_type RGL_ext_game \<Rightarrow> bool" where
+  "RGL_is_even_dual n x (RGL_ext_Atm_Game a) = True"
+|   "RGL_is_even_dual n x (RGL_ext_Atm_Game_Dual a) = True"
+|   "RGL_is_even_dual n x (RGL_ext_Var y) = (if y\<noteq>x then True else n)"
+|   "RGL_is_even_dual n x (RGL_ext_Var_Dual y) = (if y\<noteq>x then True else \<not>n)"
+|   "RGL_is_even_dual n x (RGL_ext_Test f) = True"
+|   "RGL_is_even_dual n x (RGL_ext_Test_Dual f) = True"
+|   "RGL_is_even_dual n x (RGL_ext_Choice g1 g2) = (RGL_is_even_dual n x g1 \<and> RGL_is_even_dual n x g2)"
+|   "RGL_is_even_dual n x (RGL_ext_Choice_Dual g1 g2) =(RGL_is_even_dual n x g1 \<and> RGL_is_even_dual n x g2)"
+|   "RGL_is_even_dual n x (RGL_ext_Seq g1 g2) = (RGL_is_even_dual n x g1 \<and> RGL_is_even_dual n x g2)"
+|   "RGL_is_even_dual n x (RGL_ext_Rec y g) = (if y=x then True else RGL_is_even_dual n x g)"
+|   "RGL_is_even_dual n x (RGL_ext_Rec_Dual y g) = (if y=x then True else RGL_is_even_dual n x g)"
+
+primrec RGL_is_normal_form :: "RGL_var_type RGL_ext_game \<Rightarrow> bool" where
+  "RGL_is_normal_form (RGL_ext_Atm_Game a) = True"
+|   "RGL_is_normal_form (RGL_ext_Atm_Game_Dual a) = True"
+|   "RGL_is_normal_form (RGL_ext_Var b) = True"
+|   "RGL_is_normal_form (RGL_ext_Var_Dual b) = True"
+|   "RGL_is_normal_form (RGL_ext_Test \<phi>) = RGL_is_closed \<phi>"
+|   "RGL_is_normal_form (RGL_ext_Test_Dual \<phi>) = RGL_is_closed \<phi>"
+|   "RGL_is_normal_form (RGL_ext_Choice g1 g2) = (RGL_is_normal_form g1 \<and> RGL_is_normal_form g2)"
+|   "RGL_is_normal_form (RGL_ext_Choice_Dual g1 g2) = (RGL_is_normal_form g1 \<and> RGL_is_normal_form g2)"
+|   "RGL_is_normal_form (RGL_ext_Seq g1 g2) = (RGL_is_normal_form g1 \<and> RGL_is_normal_form g2)"
+|   "RGL_is_normal_form (RGL_ext_Rec x g) = RGL_is_even_dual True x g"
+|   "RGL_is_normal_form (RGL_ext_Rec_Dual x g) = RGL_is_even_dual True x g"
+
+
+lemma RGL_ext_game_sem_wd :
+  fixes N :: "RGL_ground_type Nbd_Struct"
+  and I :: "RGL_var_type val"
+assumes "is_nbd_struct N"
+    and "is_val N I"
+  shows
+    "(RGL_ext_fml_sem N I f) \<subseteq> (World N)"
+    " \<forall>A \<subseteq> (World N).(RGL_ext_game_sem N I g) A \<subseteq> (World N)"
+proof (induction f and g)
+  case (RGL_ext_Atm_Game x)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def carrier_of_def)
+next
+  case (RGL_ext_Atm_Game_Dual x)
+  then show ?case 
+    using assms apply ( simp )
+    using dual_eff_fn_compat[of "N" "GameInterp N x"] assms 
+      apply (auto simp add:is_nbd_struct_def carrier_of_def)
+    done
+next
+  case (RGL_ext_Var x)
+  then show ?case 
+    using assms(2) apply (auto simp add:is_val_def effective_fn_of_def)
+    done
+next
+  case (RGL_ext_Var_Dual x)
+  then show ?case 
+    using assms dual_eff_fn_compat[of "N" "I x"] 
+    apply (auto simp add:is_val_def effective_fn_of_def)
+    done
+next
+  case (RGL_ext_Test x)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+next
+  case (RGL_ext_Test_Dual x)
+  then show ?case using assms
+    by (simp add: is_nbd_struct_def Semantics.comp_def dual_eff_fn_def)
+next
+  case (RGL_ext_Choice x1 x2)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+next
+  case (RGL_ext_Choice_Dual x1 x2)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def dual_eff_fn_def)
+next
+  case (RGL_ext_Seq x1 x2)
+  then show ?case by auto
+next
+  case (RGL_ext_Rec x1 x2)
+  then show ?case by (simp add:Lfp_def ambient_inter_def)
+next
+  case (RGL_ext_Rec_Dual x1 x2)
+  then show ?case 
+    apply (simp add:Gfp_def is_nbd_struct_def Gfp_family_def carrier_of_def)
+    by blast
+next
+  case (RGL_ext_Atm_fml x)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+next
+  case (RGL_ext_Not x)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+next
+  case (RGL_ext_Or x1 x2)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+next
+  case (RGL_ext_And x1 x2)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+next
+  case (RGL_ext_Mod x1 x2)
+  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+qed
+
+lemma RGL_interp_subst_is_monotone_op:
+  fixes N :: "RGL_ground_type Nbd_Struct"
+     and   I :: "RGL_var_type val"
+     and   g :: "RGL_var_type RGL_ext_game"
+     and  f :: "RGL_var_type RGL_ext_fml"
+     and  x:: "RGL_var_type"
+  assumes "is_nbd_struct N" and "is_val N I" and " RGL_is_even_dual True x g"
+  shows "RGL_interp_subst_op N I x g \<in> monotone_op_of (World N)" 
+        "True"
+  using assms(3)
+proof (induction g and f)
   case (RGL_ext_Atm_Game x)
   then show ?case
     using assms apply (simp add:RGL_interp_subst_op_def)
@@ -954,12 +1077,45 @@ next
 next
   case (RGL_ext_Var x)
   then show ?case 
+    using assms(2) apply (auto simp add:is_val_def effective_fn_of_def RGL_interp_subst_op_def monotone_op_of_def fun_le_def)
+    done
 next
-  case (RGL_ext_Var_Dual x)
-  then show ?case sorry
+  case (RGL_ext_Var_Dual y)
+  then show ?case
+  proof -
+    assume P:"RGL_is_even_dual True x (RGL_ext_Var_Dual y)"
+    consider (eq) "x=y" | (noteq) "x\<noteq>y" by auto
+    then show ?thesis
+    proof cases
+      case eq
+      from eq have "RGL_is_even_dual True x (RGL_ext_Var_Dual y) = False" by simp
+      then have False using P by auto
+      then show ?thesis by simp
+    next
+      case noteq
+      have "RGL_interp_subst_op N I x (RGL_ext_Var_Dual y) = (\<lambda>a. dual_eff_fn N (if y = x then a else I y))" 
+        using RGL_interp_subst_op_def by fastforce
+      then have P1:"RGL_interp_subst_op N I x (RGL_ext_Var_Dual y) = (\<lambda>a. dual_eff_fn N (I y))"
+        using noteq by auto
+
+      have Q1:"I y \<in> (Pow (World N)\<rightarrow>Pow (World N)) \<inter> mono_of (World N)" using assms(2) 
+        by (simp add:is_val_def effective_fn_of_def)
+      then have "dual_eff_fn N (I y) \<in> (Pow (World N)\<rightarrow>Pow (World N)) \<inter> mono_of (World N) "
+        using mono_dual_mono[of "I y" "N"] dual_eff_fn_compat[of "N" "I y"] assms(1)
+        by (auto simp add:is_nbd_struct_def is_val_def effective_fn_of_def)
+      then show ?thesis
+        using P1 apply (simp add:monotone_op_of_def fun_le_def effective_fn_of_def)
+        done
+    qed
+  qed
 next
-  case (RGL_ext_Test x)
-  then show ?case sorry
+  case (RGL_ext_Test fl)
+  then show ?case 
+    apply (simp add:RGL_interp_subst_op_def monotone_op_of_def effective_fn_of_def)
+    using RGL_ext_game_sem_wd(1)[of "N" "I"] assms apply (auto simp add:mono_of_def)
+  proof -
+    
+  qed
 next
   case (RGL_ext_Test_Dual x)
   then show ?case sorry
@@ -996,68 +1152,6 @@ next
 qed
 
 
-
-lemma RGL_ext_game_sem_wd :
-  fixes N :: "RGL_ground_type Nbd_Struct"
-  and I :: "RGL_var_type val"
-assumes "is_nbd_struct N"
-    and "is_val N I"
-  shows
-    "(RGL_ext_fml_sem N I f) \<subseteq> (World N)"
-    " \<forall>A \<subseteq> (World N).(RGL_ext_game_sem N I g) A \<subseteq> (World N)"
-proof (induction f and g)
-  case (RGL_ext_Atm_Game x)
-  then show ?case using assms by (auto simp add:is_nbd_struct_def carrier_of_def)
-next
-  case (RGL_ext_Atm_Game_Dual x)
-  then show ?case using assms by (auto simp add:is_nbd_struct_def dual_eff_fn_def)
-next
-  case (RGL_ext_Var x)
-  then show ?case using assms by (auto simp add:is_val_def)
-next
-  case (RGL_ext_Var_Dual x)
-  then show ?case using assms by (auto simp add:is_val_def dual_eff_fn_def)
-next
-  case (RGL_ext_Test x)
-  then show ?case using assms by (auto simp add:is_nbd_struct_def)
-next
-  case (RGL_ext_Test_Dual x)
-  then show ?case using assms by (auto simp add:is_nbd_struct_def dual_eff_fn_def)
-next
-  case (RGL_ext_Choice x1 x2)
-  then show ?case using assms by (auto simp add:is_nbd_struct_def)
-next
-  case (RGL_ext_Choice_Dual x1 x2)
-  then show ?case using assms by (auto simp add:is_nbd_struct_def dual_eff_fn_def)
-next
-  case (RGL_ext_Seq x1 x2)
-  then show ?case by auto
-next
-  case (RGL_ext_Rec x1 x2)
-  then show ?case
-    apply simp
-  proof -
-    
-  qed
-next
-  case (RGL_ext_Rec_Dual x1 x2)
-  then show ?case using assms by (auto simp add:is_nbd_struct_def)
-next
-  case (RGL_ext_Atm_fml x)
-  then show ?case using assms by (auto simp add:is_nbd_struct_def)
-next
-  case (RGL_ext_Not x)
-  then show ?case using assms by (auto simp add:is_nbd_struct_def)
-next
-  case (RGL_ext_Or x1 x2)
-  then show ?case using assms by (auto simp add:is_nbd_struct_def)
-next
-  case (RGL_ext_And x1 x2)
-  then show ?case using assms by (auto simp add:is_nbd_struct_def)
-next
-  case (RGL_ext_Mod x1 x2)
-  then show ?case using assms by (auto simp add:is_nbd_struct_def)
-qed
 
 lemma syn_invert_save_sem :
   fixes \<phi> :: "RGL_var_type RGL_ext_fml"
