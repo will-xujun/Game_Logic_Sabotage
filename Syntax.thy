@@ -111,6 +111,14 @@ and
   | RGL_ext_And "'c RGL_ext_fml" "'c RGL_ext_fml"
   | RGL_ext_Mod "'c RGL_ext_game" "'c RGL_ext_fml"   
 
+definition RGL_ext_fml_atomic :: "'c RGL_ext_fml \<Rightarrow> bool" where
+  "RGL_ext_fml_atomic f \<equiv> \<exists>P. (f = RGL_ext_Atm_fml P)"
+
+\<comment>\<open>Tests if an RGL_ext_fml or an RGL_ext_game is in normal form\<close>
+definition RGL_ext_fml_normal :: "'c RGL_ext_fml \<Rightarrow> bool" where
+  "RGL_ext_fml_normal f \<equiv> \<forall>g. (f = RGL_ext_Not g \<longrightarrow> RGL_ext_fml_atomic g)"
+
+
 \<comment>\<open>Tests if a RGL_ext_fml contains no explicit ()^d constructor on a variable x.
   Does not go through binders.
 \<close>

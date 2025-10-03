@@ -873,7 +873,7 @@ fun RGL_syn_comp :: "RGL_var_type RGL_ext_fml \<Rightarrow> RGL_var_type RGL_ext
 and RGL_syn_dual :: "RGL_var_type RGL_ext_game \<Rightarrow> RGL_var_type RGL_ext_game" 
 where
  "RGL_syn_comp (RGL_ext_Atm_fml P) = RGL_ext_Not (RGL_ext_Atm_fml P)"
-| "RGL_syn_comp (RGL_ext_Not f) = RGL_syn_comp f"
+| "RGL_syn_comp (RGL_ext_Not f) = f"
 | "RGL_syn_comp (RGL_ext_Or f1 f2) = RGL_ext_And (RGL_syn_comp f1) (RGL_syn_comp f2)"
 | "RGL_syn_comp (RGL_ext_Mod g f) = RGL_ext_Mod (RGL_syn_dual g) (RGL_syn_comp f)"
 | "RGL_syn_comp (RGL_ext_And f1 f2) = RGL_ext_Or (RGL_syn_comp f1) (RGL_syn_comp f2)"
@@ -889,11 +889,83 @@ where
 | "RGL_syn_dual (RGL_ext_Rec x g) = RGL_ext_Rec_Dual x (RGL_dualize_free x (RGL_syn_dual g))"
 | "RGL_syn_dual (RGL_ext_Rec_Dual x g) = RGL_ext_Rec x (RGL_dualize_free x (RGL_syn_dual g))"
 
+lemma RGL_dualize_free_comm : 
+    fixes f::"RGL_var_type RGL_ext_fml"
+  and g:: "RGL_var_type RGL_ext_game"
+  and x:: "RGL_var_type"
+  and y:: "RGL_var_type"
+assumes "x \<noteq> y"
+shows "RGL_dualize_free x (RGL_dualize_free y g) = RGL_dualize_free y (RGL_dualize_free x g)"
+  "RGL_dualize_free_fml x (RGL_dualize_free_fml y f) = RGL_dualize_free_fml y (RGL_dualize_free_fml x f)"
+apply (induction g and f) apply auto done
+
+
+lemma RGL_syn_dual__dualize_free_comm :
+  fixes f::"RGL_var_type RGL_ext_fml"
+  and g:: "RGL_var_type RGL_ext_game"
+shows "RGL_dualize_free_fml x (RGL_syn_comp f) = RGL_syn_comp (RGL_dualize_free_fml x f)"
+    "RGL_dualize_free x (RGL_syn_dual g) = RGL_syn_dual (RGL_dualize_free x g)"
+proof (induction f and g)
+  case (RGL_ext_Atm_Game x)
+  then show ?case by auto
+next
+  case (RGL_ext_Atm_Game_Dual x)
+  then show ?case by auto
+next
+  case (RGL_ext_Var x)
+  then show ?case by auto
+next
+  case (RGL_ext_Var_Dual x)
+  then show ?case by auto
+next
+  case (RGL_ext_Test x)
+  then show ?case by auto
+next
+  case (RGL_ext_Test_Dual x)
+  then show ?case by auto
+next
+  case (RGL_ext_Choice x1 x2)
+  then show ?case by auto
+next
+  case (RGL_ext_Choice_Dual x1 x2)
+  then show ?case by auto
+next
+  case (RGL_ext_Seq x1 x2)
+  then show ?case by auto
+next
+  case (RGL_ext_Rec y g)
+  then show ?case 
+    using RGL_dualize_free_comm(1)[of "x""y""g"] apply auto
+    by (metis RGL_dualize_free_comm(1))
+next
+  case (RGL_ext_Rec_Dual y g)
+  then show ?case
+    using RGL_dualize_free_comm(1)[of "x""y""g"] apply auto
+    by (metis RGL_dualize_free_comm(1))
+next
+  case (RGL_ext_Atm_fml x)
+  then show ?case by auto
+next
+  case (RGL_ext_Not x)
+  then show ?case by auto
+next
+  case (RGL_ext_Or x1 x2)
+  then show ?case by auto
+next
+  case (RGL_ext_And x1 x2)
+  then show ?case by auto
+next
+  case (RGL_ext_Mod x1 x2)
+  then show ?case by auto
+qed
+
 lemma RGL_syn_invert_invo :
   fixes f::"RGL_var_type RGL_ext_fml"
   and g:: "RGL_var_type RGL_ext_game"
+assumes "RGL_ext_fml_normal f"
 shows "RGL_syn_comp (RGL_syn_comp f) = f"
     "RGL_syn_dual (RGL_syn_dual g) = g"
+  using assms
 proof (induction f and g)
   case (RGL_ext_Atm_Game x)
   then show ?case by auto
@@ -924,18 +996,22 @@ next
 next
   case (RGL_ext_Rec x g)
   then show ?case apply auto
+    using RGL_syn_dual__dualize_free_comm(2) RGL_dualize_free_invo(1) by auto
 next
   case (RGL_ext_Rec_Dual x1 x2)
+  then show ?case 
+    using RGL_syn_dual__dualize_free_comm(2) RGL_dualize_free_invo(1) by auto
+next
+  case (RGL_ext_Atm_fml P)
   then show ?case by auto
 next
-  case (RGL_ext_Atm_fml x)
-  then show ?case by auto
+  case (RGL_ext_Not f')
+  then show ?case 
+    by (auto simp add: RGL_ext_fml_normal_def RGL_ext_fml_atomic_def)
 next
-  case (RGL_ext_Not x)
-  then show ?case by auto
-next
-  case (RGL_ext_Or x1 x2)
-  then show ?case by auto
+  case (RGL_ext_Or f1 f2)
+  then show ?case 
+    apply auto
 next
   case (RGL_ext_And x1 x2)
   then show ?case by auto
