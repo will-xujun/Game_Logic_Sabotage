@@ -817,14 +817,14 @@ next
   by (metis GLs_dual_eff_fn_def GLs_ext_fml_sem.simps(5) GLs_sem_wd(1) GLs_syn_comp.simps(5) isStruct sabo_dbl_comp)
 qed
 
-section \<open>The RGL extension of base \<close>
+section \<open>The RGL extension of base, with world structure un-modified\<close>
 type_synonym RGL_var_type = "int"
 type_synonym RGL_ground_type = "int"
 type_synonym RGL_world_type = "RGL_ground_type world_type"
 type_synonym RGL_sub_world_type = "RGL_ground_type sub_world_type"
 type_synonym RGL_eff_fn_type = "RGL_sub_world_type \<Rightarrow> RGL_sub_world_type"
 
-\<comment>\<open>No modification to the base\<close>
+\<comment>\<open>RGL semantics\<close>
 fun RGL_fml_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type RGL_fml \<Rightarrow> RGL_sub_world_type"
   and RGL_game_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type RGL_game \<Rightarrow> RGL_eff_fn_type"
   where
@@ -837,25 +837,43 @@ fun RGL_fml_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<
 | "RGL_game_sem N I (RGL_Dual g) A = (dual_eff_fn N (RGL_game_sem N I g)) A"
 | "RGL_game_sem N I (RGL_Test fl) A = (RGL_fml_sem N I fl) \<inter> A"
 | "RGL_game_sem N I (RGL_Choice g1 g2) A = (RGL_game_sem N I g1 A) \<union> (RGL_game_sem N I g2 A)"
-| "RGL_game_sem N I (RGL_Seq g1 g2) A = ((RGL_game_sem N I g2) \<circ> (RGL_game_sem N I g1)) A"
-| "RGL_game_sem N I (RGL_Rec x g) A = (lfp (\<lambda>u. (RGL_game_sem N (I(x:=u)) g))) A"
+| "RGL_game_sem N I (RGL_Seq g1 g2) A = (RGL_game_sem N I g2) ((RGL_game_sem N I g1) A)"
+| "RGL_game_sem N I (RGL_Rec x g) A =  (Lfp (World N) (\<lambda>u. (RGL_game_sem N (I(x:=u)) g))) A"
 
-fun RGL_dualize_free :: "RGL_var_type \<Rightarrow> RGL_var_type RGL_ext_game \<Rightarrow> RGL_var_type RGL_ext_game" where
+fun RGL_dualize_free :: "RGL_var_type \<Rightarrow> RGL_var_type RGL_ext_game \<Rightarrow> RGL_var_type RGL_ext_game" 
+  and RGL_dualize_free_fml :: "RGL_var_type \<Rightarrow> RGL_var_type RGL_ext_fml \<Rightarrow> RGL_var_type RGL_ext_fml"
+  where
 "RGL_dualize_free x (RGL_ext_Var y) = (if x=y then (RGL_ext_Var_Dual x) else (RGL_ext_Var y))"
+| "RGL_dualize_free x (RGL_ext_Atm_Game g) = RGL_ext_Atm_Game g"
+| "RGL_dualize_free x (RGL_ext_Atm_Game_Dual g) = RGL_ext_Atm_Game_Dual g"
 | "RGL_dualize_free x (RGL_ext_Var_Dual y) = (if x=y then (RGL_ext_Var x) else (RGL_ext_Var_Dual y))"
 | "RGL_dualize_free x (RGL_ext_Rec y g) = (if x=y then (RGL_ext_Rec y g) else RGL_ext_Rec y (RGL_dualize_free x g))"
 | "RGL_dualize_free x (RGL_ext_Rec_Dual y g) = (if x=y then (RGL_ext_Rec_Dual y g) else RGL_ext_Rec_Dual y (RGL_dualize_free x g))"
 | "RGL_dualize_free x (RGL_ext_Choice g1 g2) = RGL_ext_Choice (RGL_dualize_free x g1) (RGL_dualize_free x g2)"
 | "RGL_dualize_free x (RGL_ext_Choice_Dual g1 g2) = RGL_ext_Choice_Dual (RGL_dualize_free x g1) (RGL_dualize_free x g2)"
 | "RGL_dualize_free x (RGL_ext_Seq g1 g2) = RGL_ext_Seq (RGL_dualize_free x g1) (RGL_dualize_free x g2)"
-| "RGL_dualize_free x g = g"
+| "RGL_dualize_free x (RGL_ext_Test f) = RGL_ext_Test (RGL_dualize_free_fml x f)"
+| "RGL_dualize_free x (RGL_ext_Test_Dual f) = RGL_ext_Test_Dual (RGL_dualize_free_fml x f)"
+| "RGL_dualize_free_fml x (RGL_ext_Atm_fml P) = RGL_ext_Atm_fml P"
+| "RGL_dualize_free_fml x (RGL_ext_Not f) = RGL_ext_Not (RGL_dualize_free_fml x f)"
+| "RGL_dualize_free_fml x (RGL_ext_Or f1 f2)  = RGL_ext_Or (RGL_dualize_free_fml x f1) (RGL_dualize_free_fml x f2)"
+| "RGL_dualize_free_fml x (RGL_ext_And f1 f2) = RGL_ext_And (RGL_dualize_free_fml x f1) (RGL_dualize_free_fml x f2) "
+| "RGL_dualize_free_fml x (RGL_ext_Mod g f) = RGL_ext_Mod (RGL_dualize_free x g) (RGL_dualize_free_fml x f)"
+
+lemma RGL_dualize_free_invo :
+  fixes g :: " RGL_var_type RGL_ext_game"
+  and f :: "RGL_var_type RGL_ext_fml"
+shows "RGL_dualize_free x (RGL_dualize_free x g) = g" 
+   "RGL_dualize_free_fml x (RGL_dualize_free_fml x f) = f"
+   apply (induction g and f) 
+   apply auto done
 
 \<comment>\<open>syntactic dual and complement functions. The return value is automatically in normal form.\<close>
 fun RGL_syn_comp :: "RGL_var_type RGL_ext_fml \<Rightarrow> RGL_var_type RGL_ext_fml"
 and RGL_syn_dual :: "RGL_var_type RGL_ext_game \<Rightarrow> RGL_var_type RGL_ext_game" 
 where
  "RGL_syn_comp (RGL_ext_Atm_fml P) = RGL_ext_Not (RGL_ext_Atm_fml P)"
-| "RGL_syn_comp (RGL_ext_Not f) = RGL_syn_comp f"
+| "RGL_syn_comp (RGL_ext_Not f) = f"
 | "RGL_syn_comp (RGL_ext_Or f1 f2) = RGL_ext_And (RGL_syn_comp f1) (RGL_syn_comp f2)"
 | "RGL_syn_comp (RGL_ext_Mod g f) = RGL_ext_Mod (RGL_syn_dual g) (RGL_syn_comp f)"
 | "RGL_syn_comp (RGL_ext_And f1 f2) = RGL_ext_Or (RGL_syn_comp f1) (RGL_syn_comp f2)"
@@ -868,10 +886,139 @@ where
 | "RGL_syn_dual (RGL_ext_Test_Dual f) = RGL_ext_Test f"
 | "RGL_syn_dual (RGL_ext_Choice g1 g2) = RGL_ext_Choice_Dual (RGL_syn_dual g1) (RGL_syn_dual g2)"
 | "RGL_syn_dual (RGL_ext_Choice_Dual g1 g2) = RGL_ext_Choice (RGL_syn_dual g1) (RGL_syn_dual g2)"
-| "RGL_syn_dual (RGL_ext_Rec x g) = 
-  RGL_ext_Rec_Dual x (RGL_dualize_free x (RGL_syn_dual g))"
+| "RGL_syn_dual (RGL_ext_Rec x g) = RGL_ext_Rec_Dual x (RGL_dualize_free x (RGL_syn_dual g))"
 | "RGL_syn_dual (RGL_ext_Rec_Dual x g) = RGL_ext_Rec x (RGL_dualize_free x (RGL_syn_dual g))"
 
+lemma RGL_dualize_free_comm : 
+    fixes f::"RGL_var_type RGL_ext_fml"
+  and g:: "RGL_var_type RGL_ext_game"
+  and x:: "RGL_var_type"
+  and y:: "RGL_var_type"
+assumes "x \<noteq> y"
+shows "RGL_dualize_free x (RGL_dualize_free y g) = RGL_dualize_free y (RGL_dualize_free x g)"
+  "RGL_dualize_free_fml x (RGL_dualize_free_fml y f) = RGL_dualize_free_fml y (RGL_dualize_free_fml x f)"
+apply (induction g and f) apply auto done
+
+
+lemma RGL_syn_dual__dualize_free_comm :
+  fixes f::"RGL_var_type RGL_ext_fml"
+  and g:: "RGL_var_type RGL_ext_game"
+shows "RGL_dualize_free_fml x (RGL_syn_comp f) = RGL_syn_comp (RGL_dualize_free_fml x f)"
+    "RGL_dualize_free x (RGL_syn_dual g) = RGL_syn_dual (RGL_dualize_free x g)"
+proof (induction f and g)
+  case (RGL_ext_Atm_Game x)
+  then show ?case by auto
+next
+  case (RGL_ext_Atm_Game_Dual x)
+  then show ?case by auto
+next
+  case (RGL_ext_Var x)
+  then show ?case by auto
+next
+  case (RGL_ext_Var_Dual x)
+  then show ?case by auto
+next
+  case (RGL_ext_Test x)
+  then show ?case by auto
+next
+  case (RGL_ext_Test_Dual x)
+  then show ?case by auto
+next
+  case (RGL_ext_Choice x1 x2)
+  then show ?case by auto
+next
+  case (RGL_ext_Choice_Dual x1 x2)
+  then show ?case by auto
+next
+  case (RGL_ext_Seq x1 x2)
+  then show ?case by auto
+next
+  case (RGL_ext_Rec y g)
+  then show ?case 
+    using RGL_dualize_free_comm(1)[of "x""y""g"] apply auto
+    by (metis RGL_dualize_free_comm(1))
+next
+  case (RGL_ext_Rec_Dual y g)
+  then show ?case
+    using RGL_dualize_free_comm(1)[of "x""y""g"] apply auto
+    by (metis RGL_dualize_free_comm(1))
+next
+  case (RGL_ext_Atm_fml x)
+  then show ?case by auto
+next
+  case (RGL_ext_Not x)
+  then show ?case by auto
+next
+  case (RGL_ext_Or x1 x2)
+  then show ?case by auto
+next
+  case (RGL_ext_And x1 x2)
+  then show ?case by auto
+next
+  case (RGL_ext_Mod x1 x2)
+  then show ?case by auto
+qed
+
+lemma RGL_syn_invert_invo :
+  fixes f::"RGL_var_type RGL_ext_fml"
+  and g:: "RGL_var_type RGL_ext_game"
+assumes "RGL_ext_fml_normal f"
+shows "RGL_syn_comp (RGL_syn_comp f) = f"
+    "RGL_syn_dual (RGL_syn_dual g) = g"
+  using assms
+proof (induction f and g)
+  case (RGL_ext_Atm_Game x)
+  then show ?case by auto
+next
+  case (RGL_ext_Atm_Game_Dual x)
+  then show ?case by auto
+next
+  case (RGL_ext_Var x)
+  then show ?case by auto
+next
+  case (RGL_ext_Var_Dual x)
+  then show ?case by auto
+next
+  case (RGL_ext_Test x)
+  then show ?case by auto
+next
+  case (RGL_ext_Test_Dual x)
+  then show ?case by auto
+next
+  case (RGL_ext_Choice x1 x2)
+  then show ?case by auto
+next
+  case (RGL_ext_Choice_Dual x1 x2)
+  then show ?case by auto
+next
+  case (RGL_ext_Seq x1 x2)
+  then show ?case by auto
+next
+  case (RGL_ext_Rec x g)
+  then show ?case apply auto
+    using RGL_syn_dual__dualize_free_comm(2) RGL_dualize_free_invo(1) by auto
+next
+  case (RGL_ext_Rec_Dual x1 x2)
+  then show ?case 
+    using RGL_syn_dual__dualize_free_comm(2) RGL_dualize_free_invo(1) by auto
+next
+  case (RGL_ext_Atm_fml P)
+  then show ?case by auto
+next
+  case (RGL_ext_Not f')
+  then show ?case 
+    by (auto simp add: RGL_ext_fml_normal_def RGL_ext_fml_atomic_def)
+next
+  case (RGL_ext_Or f1 f2)
+  then show ?case 
+    apply auto
+next
+  case (RGL_ext_And x1 x2)
+  then show ?case by auto
+next
+  case (RGL_ext_Mod x1 x2)
+  then show ?case by auto
+qed
 
 fun RGL_syn_subst :: "RGL_var_type \<Rightarrow> RGL_var_type RGL_ext_game \<Rightarrow> RGL_var_type RGL_ext_game \<Rightarrow> RGL_var_type RGL_ext_game" 
 where
@@ -890,20 +1037,111 @@ where
 | "RGL_syn_subst x0 g0 (RGL_ext_Rec_Dual x g) = 
     (if x0=x then (RGL_ext_Rec_Dual x g) else RGL_ext_Rec_Dual x (RGL_syn_subst x0 g0 g))"
 
+\<comment>\<open>embed RGL formula and game into extended grammar
+  The result is automatically in normal form since RGL_syn_dual pushes duality down recursively.
+\<close>
+fun RGL_fml_embed :: "RGL_var_type RGL_fml \<Rightarrow> RGL_var_type RGL_ext_fml"
+and  RGL_game_embed :: "RGL_var_type RGL_game \<Rightarrow> RGL_var_type RGL_ext_game" where
+ "RGL_fml_embed (RGL_Atm_fml f) = RGL_ext_Atm_fml f"
+| "RGL_fml_embed (RGL_Not f) = RGL_ext_Not (RGL_fml_embed f)"
+| "RGL_fml_embed (RGL_Or f1 f2) = RGL_ext_Or (RGL_fml_embed f1) (RGL_fml_embed f2)"
+| "RGL_fml_embed (RGL_Mod g f) = RGL_ext_Mod (RGL_game_embed g) (RGL_fml_embed f)"
+| "RGL_game_embed (RGL_Atm_Game a) = RGL_ext_Atm_Game a"
+| "RGL_game_embed (RGL_Var x) = RGL_ext_Var x"
+| "RGL_game_embed (RGL_Dual g) = RGL_syn_dual (RGL_game_embed g)"
+| "RGL_game_embed (RGL_Test fl) = RGL_ext_Test (RGL_fml_embed fl)"
+| "RGL_game_embed (RGL_Choice g1 g2) = RGL_ext_Choice (RGL_game_embed g1) (RGL_game_embed g2)"
+| "RGL_game_embed (RGL_Seq g1 g2) = RGL_ext_Seq (RGL_game_embed g1) (RGL_game_embed g2)"
+| "RGL_game_embed (RGL_Rec x g) = RGL_ext_Rec x (RGL_game_embed g)"
 
-fun RGL_fml_embed_ext :: "RGL_var_type RGL_fml \<Rightarrow> RGL_var_type RGL_ext_fml"
-and  RGL_gm_embed_ext :: "RGL_var_type RGL_game \<Rightarrow> RGL_var_type RGL_ext_game" where
- "RGL_fml_embed_ext (RGL_Atm_fml f) = RGL_ext_Atm_fml f"
-| "RGL_fml_embed_ext (RGL_Not f) = RGL_ext_Not (RGL_fml_embed_ext f)"
-| "RGL_fml_embed_ext (RGL_Or f1 f2) = RGL_ext_Or (RGL_fml_embed_ext f1) (RGL_fml_embed_ext f2)"
-| "RGL_fml_embed_ext (RGL_Mod g f) = RGL_ext_Mod (RGL_gm_embed_ext g) (RGL_fml_embed_ext f)"
-| "RGL_gm_embed_ext (RGL_Atm_Game a) = RGL_ext_Atm_Game a"
-| "RGL_gm_embed_ext (RGL_Var x) = RGL_ext_Var x"
-| "RGL_gm_embed_ext (RGL_Dual g) = RGL_syn_dual (RGL_gm_embed_ext g)"
-| "RGL_gm_embed_ext (RGL_Test fl) = RGL_ext_Test (RGL_fml_embed_ext fl)"
-| "RGL_gm_embed_ext (RGL_Choice g1 g2) = RGL_ext_Choice (RGL_gm_embed_ext g1) (RGL_gm_embed_ext g2)"
-| "RGL_gm_embed_ext (RGL_Seq g1 g2) = RGL_ext_Seq (RGL_gm_embed_ext g1) (RGL_gm_embed_ext g2)"
-| "RGL_gm_embed_ext (RGL_Rec x g) = RGL_ext_Rec x (RGL_gm_embed_ext g)"
+lemma RGL_even_dual_syn_dual: fixes
+  g:: "RGL_var_type RGL_game" and
+  f:: "RGL_var_type RGL_fml" and
+  x:: "RGL_var_type"
+assumes "RGL_even_dual False x g" and "RGL_game_valid g"
+shows "RGL_ext_game_no_dual x (RGL_syn_dual (RGL_game_embed g))" "True"
+  using assms
+proof (induction g and f)
+  case (RGL_Atm_Game x)
+  then show ?case by auto
+next
+  case (RGL_Var x)
+  then show ?case by auto
+next
+  case (RGL_Dual g)
+  then show ?case apply simp
+  proof - 
+  qed
+next
+  case (RGL_Test x)
+  then show ?case sorry
+next
+  case (RGL_Choice x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Seq x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Rec x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Atm_fml x)
+  then show ?case sorry
+next
+  case (RGL_Not x)
+  then show ?case sorry
+next
+  case (RGL_Or x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Mod x1 x2)
+  then show ?case sorry
+qed
+
+\<comment>\<open> When g = rx.h, RGL_game_embed h is no free dual on x.\<close>
+lemma RGL_Rec_embed_no_dual: 
+  fixes
+    h :: "RGL_var_type RGL_game"
+    and x :: "RGL_var_type"
+    and f :: "RGL_var_type RGL_fml"
+  assumes "RGL_even_dual True x h"
+  shows "RGL_ext_game_no_dual x (RGL_game_embed h)" "True"
+  using assms
+proof (induction h and f)
+  case (RGL_Atm_Game x)
+  then show ?case by auto
+next
+  case (RGL_Var x)
+  then show ?case by auto
+next
+  case (RGL_Dual g)
+  then show ?case
+    apply (auto)
+next
+  case (RGL_Test x)
+  then show ?case sorry
+next
+  case (RGL_Choice x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Seq x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Rec x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Atm_fml x)
+  then show ?case sorry
+next
+  case (RGL_Not x)
+  then show ?case sorry
+next
+  case (RGL_Or x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Mod x1 x2)
+  then show ?case sorry
+qed
 
 \<comment>\<open>For the syntax extended with complement and dual, we only interpret normal form formulas.
   Choice_Dual = cap, interpreted as set intersection
@@ -930,72 +1168,11 @@ fun RGL_ext_fml_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type va
 | "RGL_ext_game_sem N I (RGL_ext_Rec x g) A = (Lfp (World N) (\<lambda>u. (RGL_ext_game_sem N (I(x:=u)) g))) A"
 | "RGL_ext_game_sem N I (RGL_ext_Rec_Dual x g) A = (Gfp (World N) (\<lambda>u. (RGL_ext_game_sem N (I(x:=u)) g))) A"
 
-definition RGL_interp_subst_op :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type \<Rightarrow> RGL_var_type RGL_ext_game \<Rightarrow> RGL_eff_fn_type \<Rightarrow> RGL_eff_fn_type" where
-  "RGL_interp_subst_op N I x g u = RGL_ext_game_sem N (I(x:=u)) g"
+definition RGL_ext_fixpoint_op :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type \<Rightarrow> RGL_var_type RGL_ext_game \<Rightarrow> RGL_eff_fn_type \<Rightarrow> RGL_eff_fn_type" where
+  "RGL_ext_fixpoint_op N I x g u = RGL_ext_game_sem N (I(x:=u)) g"
 
-lemma RGL_interp_subst_is_monotone_op: 
-  assumes "is_nbd_struct N" and "is_val N I"
-  shows "RGL_interp_subst_op N I x g \<in> monotone_op_of (World N)"
-proof (induction g)
-  case (RGL_ext_Atm_Game x)
-  then show ?case
-    using assms apply (simp add:RGL_interp_subst_op_def)
-    apply (simp add:carrier_of_def is_nbd_struct_def is_val_def effective_fn_of_def fun_le_def monotone_op_of_def)
-    done
-next
-  case (RGL_ext_Atm_Game_Dual x)
-  then show ?case
-    using assms apply (simp add:  RGL_interp_subst_op_def monotone_op_of_def effective_fn_of_def)
-    apply (auto simp add:is_nbd_struct_def)
-      apply (metis Diff_iff Semantics.comp_def dual_eff_fn_def empty_iff)
-    apply (simp add:carrier_of_def)
-    using mono_dual_mono[of "GameInterp N x" "N"] apply auto
-    using fun_le_def by blast
-next
-  case (RGL_ext_Var x)
-  then show ?case 
-next
-  case (RGL_ext_Var_Dual x)
-  then show ?case sorry
-next
-  case (RGL_ext_Test x)
-  then show ?case sorry
-next
-  case (RGL_ext_Test_Dual x)
-  then show ?case sorry
-next
-  case (RGL_ext_Choice g1 g2)
-  then show ?case sorry
-next
-  case (RGL_ext_Choice_Dual g1 g2)
-  then show ?case sorry
-next
-  case (RGL_ext_Seq g1 g2)
-  then show ?case sorry
-next
-  case (RGL_ext_Rec x1 g)
-  then show ?case sorry
-next
-  case (RGL_ext_Rec_Dual x1 g)
-  then show ?case sorry
-next
-  case (RGL_ext_Atm_fml x)
-  then show ?thesis sorry
-next
-  case (RGL_ext_Not x)
-  then show ?thesis sorry
-next
-  case (RGL_ext_Or x1 x2)
-  then show ?thesis sorry
-next
-  case (RGL_ext_And x1 x2)
-  then show ?thesis sorry
-next
-  case (RGL_ext_Mod g x2)
-  then show ?thesis sorry
-qed
-
-
+definition RGL_fixpoint_op :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type \<Rightarrow> RGL_var_type RGL_game \<Rightarrow> RGL_eff_fn_type \<Rightarrow> RGL_eff_fn_type" where
+  "RGL_fixpoint_op N I x g u = RGL_game_sem N (I(x:=u)) g"
 
 lemma RGL_ext_game_sem_wd :
   fixes N :: "RGL_ground_type Nbd_Struct"
@@ -1010,19 +1187,29 @@ proof (induction f and g)
   then show ?case using assms by (auto simp add:is_nbd_struct_def carrier_of_def)
 next
   case (RGL_ext_Atm_Game_Dual x)
-  then show ?case using assms by (auto simp add:is_nbd_struct_def dual_eff_fn_def)
+  then show ?case 
+    using assms apply ( simp )
+    using dual_eff_fn_compat[of "N" "GameInterp N x"] assms 
+      apply (auto simp add:is_nbd_struct_def carrier_of_def)
+    done
 next
   case (RGL_ext_Var x)
-  then show ?case using assms by (auto simp add:is_val_def)
+  then show ?case 
+    using assms(2) apply (auto simp add:is_val_def effective_fn_of_def)
+    done
 next
   case (RGL_ext_Var_Dual x)
-  then show ?case using assms by (auto simp add:is_val_def dual_eff_fn_def)
+  then show ?case 
+    using assms dual_eff_fn_compat[of "N" "I x"] 
+    apply (auto simp add:is_val_def effective_fn_of_def)
+    done
 next
   case (RGL_ext_Test x)
   then show ?case using assms by (auto simp add:is_nbd_struct_def)
 next
   case (RGL_ext_Test_Dual x)
-  then show ?case using assms by (auto simp add:is_nbd_struct_def dual_eff_fn_def)
+  then show ?case using assms
+    by (simp add: is_nbd_struct_def Semantics.comp_def dual_eff_fn_def)
 next
   case (RGL_ext_Choice x1 x2)
   then show ?case using assms by (auto simp add:is_nbd_struct_def)
@@ -1034,14 +1221,12 @@ next
   then show ?case by auto
 next
   case (RGL_ext_Rec x1 x2)
-  then show ?case
-    apply simp
-  proof -
-    
-  qed
+  then show ?case by (simp add:Lfp_def ambient_inter_def)
 next
   case (RGL_ext_Rec_Dual x1 x2)
-  then show ?case using assms by (auto simp add:is_nbd_struct_def)
+  then show ?case 
+    apply (simp add:Gfp_def is_nbd_struct_def Gfp_family_def carrier_of_def)
+    by blast
 next
   case (RGL_ext_Atm_fml x)
   then show ?case using assms by (auto simp add:is_nbd_struct_def)
@@ -1058,6 +1243,59 @@ next
   case (RGL_ext_Mod x1 x2)
   then show ?case using assms by (auto simp add:is_nbd_struct_def)
 qed
+
+lemma RGL_interp_subst_is_monotone_op:
+  fixes N :: "RGL_ground_type Nbd_Struct"
+     and   I :: "RGL_var_type val"
+     and   g :: "RGL_var_type RGL_game"
+     and  f :: "RGL_var_type RGL_fml"
+     and  x:: "RGL_var_type"
+  assumes "is_nbd_struct N" and "is_val N I" and " RGL_even_dual True x g"
+  shows "RGL_fixpoint_op N I x g \<in> monotone_op_of (World N)" 
+        "True"
+  using assms(3)
+proof (induction g and f)
+  case (RGL_Atm_Game x)
+  then show ?case
+    using assms apply (simp add:RGL_fixpoint_op_def)
+    apply (simp add:carrier_of_def is_nbd_struct_def is_val_def effective_fn_of_def fun_le_def monotone_op_of_def)
+    done
+next
+  case (RGL_Var x)
+  then show ?case
+    using assms apply (auto simp add:  RGL_fixpoint_op_def monotone_op_of_def effective_fn_of_def is_val_def is_nbd_struct_def carrier_of_def)
+    using mono_dual_mono[of "GameInterp N x" "N"] apply auto
+    using fun_le_def by blast
+next
+  case (RGL_Dual g')
+  then show ?case
+next
+  case (RGL_Test x)
+  then show ?case sorry
+next
+  case (RGL_Choice x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Seq x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Rec x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Atm_fml x)
+  then show ?case sorry
+next
+  case (RGL_Not x)
+  then show ?case sorry
+next
+  case (RGL_Or x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Mod x1 x2)
+  then show ?case sorry
+qed
+
+
 
 lemma syn_invert_save_sem :
   fixes \<phi> :: "RGL_var_type RGL_ext_fml"
