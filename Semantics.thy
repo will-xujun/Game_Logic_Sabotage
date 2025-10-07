@@ -615,25 +615,65 @@ proof (induction f and g)
   qed
 next
   case (GLs_Sabo x)
-  then show ?case sorry
+  then show ?case
+  proof (cases x)
+    case (Agl_gm x1)
+    then show ?thesis 
+      apply (simp add:GLs_dual_eff_fn_def GLs_game_Dsubst_def GLs_game_subst_def)
+      apply rule
+    proof fix A assume a1:"x = Agl_gm x1" and a2:"A\<subseteq>World N\<times> ALL_CX"
+      let ?LHS = "{(w, c). (w, c) \<in> World (GLs_lift_nbd N) \<and> (w, subst_cx c x1 (- 1)) \<in> A}"
+      let ?RHS = "sabo_comp (GLs_lift_nbd N) {(w, c). (w, c) \<in> World (GLs_lift_nbd N) \<and> (w, subst_cx c x1 1) \<in> sabo_comp (GLs_lift_nbd N) A}"
+      have "?RHS = sabo_comp (GLs_lift_nbd N) {(w, c). (w, c) \<in> World (GLs_lift_nbd N) \<and> (w, subst_cx (- c) x1 (-1)) \<notin> A}"
+        using sabo_comp_def dual_cx_def a2 cx_neg_sub cx_double_dual GLs_lift_nbd_def subst_cx_compat by auto
+      also have "... = {(w, c). (w, c) \<in> World (GLs_lift_nbd N) \<and> (w, dual_cx c) \<notin> {(w,c). (w, subst_cx (- c) x1 (-1)) \<notin> A} }"
+        using sabo_comp_def GLs_lift_nbd_def apply auto
+        using cx_negate_compat dual_cx_def by fastforce
+      also have "... = ?LHS"
+        using cx_double_dual dual_cx_def GLs_lift_nbd_def by auto
+      finally show "?LHS = ?RHS" by auto
+    qed
+  next
+    case (Dmn_gm x2)
+    then show ?thesis
+      apply (simp add:GLs_dual_eff_fn_def GLs_game_Dsubst_def GLs_game_subst_def)
+      apply rule
+    proof fix A assume a1:"x=Dmn_gm x2" and a2:"A\<subseteq> World N\<times>ALL_CX"
+      let ?LHS = "{(w, c). (w, c) \<in> World (GLs_lift_nbd N) \<and> (w, subst_cx c x2 1) \<in> A}"
+      let ?RHS = "sabo_comp (GLs_lift_nbd N) {(w, c). (w, c) \<in> World (GLs_lift_nbd N) \<and> (w, subst_cx c x2 (- 1)) \<in> sabo_comp (GLs_lift_nbd N) A}"
+      have "?RHS = sabo_comp (GLs_lift_nbd N) 
+        {(w, c). (w, c) \<in> World (GLs_lift_nbd N) \<and> (w, subst_cx (-c) x2 1) \<notin> A}"
+        using sabo_comp_def dual_cx_def a2 cx_neg_sub cx_double_dual GLs_lift_nbd_def subst_cx_compat by auto
+      also have "... = {(w, c). (w, c) \<in> World (GLs_lift_nbd N) \<and> (w, dual_cx c) \<notin> {(w,c). (w, subst_cx (- c) x2 1) \<notin> A} }"
+        using sabo_comp_def GLs_lift_nbd_def apply auto
+        using cx_negate_compat dual_cx_def by fastforce
+      also have "... = ?LHS" 
+        using cx_double_dual dual_cx_def GLs_lift_nbd_def by auto
+      finally show "?LHS = ?RHS" by auto
+    qed
+  qed
 next
   case (GLs_Dual x)
-  then show ?case sorry
+  then show ?case using GLs_eff_fn_double_dual
+    by (simp add: GLs_sem_wd(2) assms)
 next
   case (GLs_Test x)
-  then show ?case sorry
+  then show ?case 
+    by (simp add:GLs_DTest_def GLs_dual_eff_fn_def)
 next
   case (GLs_Choice x1 x2)
-  then show ?case sorry
+  then show ?case apply (simp add:GLs_DChoice_def GLs_dual_eff_fn_def)
+    using sabo_dbl_comp
+    by (metis GLs_lift_nbd_def GLs_sem_wd(2) Nbd_Struct.select_convs(1) assms sabo_comp_compat)
 next
   case (GLs_Seq x1 x2)
-  then show ?case sorry
+  then show ?case 
 next
   case (GLs_Star x)
   then show ?case sorry
 next
   case (GLs_Atm_fml x)
-  then show ?case sorry
+  then show ?case by auto
 next
   case (GLs_Not x)
   then show ?case apply simp
