@@ -10,6 +10,8 @@ begin
 type_synonym Atm_game = "int"
 type_synonym Atm_fml = "int"
 
+datatype atm_gm = Agl_gm "int" | Dmn_gm "int"
+
 datatype GL_game = 
   GL_Atm_Game "Atm_game"
   | GL_Dual "GL_game"
@@ -24,8 +26,8 @@ and GL_fml =
   | GL_Mod "GL_game" "GL_fml"
 
 datatype GLs_game =
-  GLs_Atm_Game "Atm_game"
-  | GLs_Sabo "Atm_game"
+  GLs_Atm_Game "atm_gm"
+  | GLs_Sabo "atm_gm"
   | GLs_Dual "GLs_game"
   | GLs_Test "GLs_fml"
   | GLs_Choice "GLs_game" "GLs_game"
@@ -36,6 +38,31 @@ and GLs_fml =
   | GLs_Not "GLs_fml"
   | GLs_Or "GLs_fml" "GLs_fml"
   | GLs_Mod "GLs_game" "GLs_fml"
+
+definition GLs_And where "GLs_And A B = GLs_Not (GLs_Or (GLs_Not A) (GLs_Not B))"
+
+definition GLs_DChoice where "GLs_DChoice g1 g2 = GLs_Dual (GLs_Choice (GLs_Dual g1) (GLs_Dual g2))"
+
+definition GLs_DTest where "GLs_DTest f = GLs_Dual (GLs_Test f)"
+
+definition GLs_DStar where "GLs_DStar g = GLs_Dual (GLs_Star (GLs_Dual g))"
+
+fun GLs_sy_comp :: "GLs_fml \<Rightarrow> GLs_fml" 
+  and GLs_sy_dual :: "GLs_game \<Rightarrow> GLs_game" where
+  "GLs_sy_comp (GLs_Atm_fml a) = GLs_Not (GLs_Atm_fml a)"
+|   "GLs_sy_comp (GLs_Not f) = f"
+|   "GLs_sy_comp (GLs_Or f1 f2) = GLs_And (GLs_sy_comp f1) (GLs_sy_comp f2)"
+|   "GLs_sy_comp (GLs_Mod g f) = GLs_Mod (GLs_sy_dual g) (GLs_sy_comp f)"
+
+|   "GLs_sy_dual (GLs_Atm_Game (Agl_gm a)) = GLs_Atm_Game (Dmn_gm a)"
+|   "GLs_sy_dual (GLs_Atm_Game (Dmn_gm a)) = GLs_Atm_Game (Agl_gm a)"
+|   "GLs_sy_dual (GLs_Sabo (Agl_gm a)) = GLs_Sabo (Dmn_gm a)"
+|   "GLs_sy_dual (GLs_Sabo (Dmn_gm a)) = GLs_Sabo (Agl_gm a)"
+|   "GLs_sy_dual (GLs_Dual g) = g"
+|   "GLs_sy_dual (GLs_Test f) = GLs_DTest f"
+|   "GLs_sy_dual (GLs_Choice g1 g2) = GLs_DChoice (GLs_sy_dual g1) (GLs_sy_dual g2)"
+|   "GLs_sy_dual (GLs_Seq g1 g2) = GLs_Seq (GLs_sy_dual g1) (GLs_sy_dual g2)"
+|   "GLs_sy_dual (GLs_Star g) = GLs_DStar (GLs_sy_dual g)"
 
 datatype GLs_ext_game =
   GLs_ext_Atm_Game "Atm_game"

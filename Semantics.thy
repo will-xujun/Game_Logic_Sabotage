@@ -368,13 +368,83 @@ fun GLs_fml_sem :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_fml \<Rightarro
 | "GLs_fml_sem N (GLs_Not fml) = (World N)-(GLs_fml_sem N fml)"
 | "GLs_fml_sem N (GLs_Or f1 f2) = GLs_fml_sem N f1 \<union> GLs_fml_sem N f2"
 | "GLs_fml_sem N (GLs_Mod g f) = (GLs_game_sem N g) (GLs_fml_sem N f)"
-| "GLs_game_sem N (GLs_Atm_Game i) A = GameInterp N i A"
+
+| "GLs_game_sem N (GLs_Atm_Game (Agl_gm i)) A = GameInterp N i A"
+| "GLs_game_sem N (GLs_Atm_Game (Dmn_gm i)) A = GLs_dual_eff_fn N (GameInterp N i) A"
 | "GLs_game_sem N (GLs_Test fml) A = (GLs_fml_sem N fml) \<inter> A "
-| "GLs_game_sem N (GLs_Sabo a) A = GLs_game_subst N A a"
+| "GLs_game_sem N (GLs_Sabo (Agl_gm a)) A = GLs_game_subst N A a"
+| "GLs_game_sem N (GLs_Sabo (Dmn_gm a)) A = GLs_game_Dsubst N A a"
 | "GLs_game_sem N (GLs_Dual g) A = sabo_dual N (GLs_game_sem N g) A"
 | "GLs_game_sem N (GLs_Choice a b) A = (GLs_game_sem N a A) \<union> (GLs_game_sem N b A)"
 | "GLs_game_sem N (GLs_Seq a b) A = GLs_game_sem N a (GLs_game_sem N b A)"
 | "GLs_game_sem N (GLs_Star a) A = lfp (\<lambda>B. A \<union> (GLs_game_sem N a B))"
+
+
+lemma GLs_sem_wd:
+  fixes N:: "ground_type Nbd_Struct"
+  and f:: "GLs_fml"
+  and g:: "GLs_game"
+assumes "is_nbd_struct N"
+shows "GLs_fml_sem (GLs_lift_nbd N) f \<subseteq> World N\<times> ALL_CX"
+  "\<forall>A \<subseteq> (World N\<times> ALL_CX). GLs_game_sem (GLs_lift_nbd N) g A \<subseteq> (World N \<times> ALL_CX)"
+proof (induction f and g)
+  case (GLs_Atm_Game x)
+  then show ?case
+  proof (cases x)
+    case (Agl_gm x1)
+    then show ?thesis 
+      using assms by (auto simp add:is_nbd_struct_def GLs_lift_nbd_def lift_game_interp_comat lift_game_interp_def)
+  next
+    case (Dmn_gm x2)
+    then show ?thesis
+      using assms GLs_dual_eff_fn_compat sabo_comp_compat
+      by (auto simp add: sabo_comp_def is_nbd_struct_def GLs_dual_eff_fn_def GLs_lift_nbd_def lift_game_interp_comat lift_game_interp_def)
+    qed
+next
+  case (GLs_Sabo x)
+  then show ?case
+  proof (cases x)
+    case (Agl_gm x1)
+    then show ?thesis 
+    using assms apply (simp add:is_nbd_struct_def GLs_lift_nbd_def GLs_game_subst_def subst_cx_compat lift_game_interp_comat carrier_of_def)
+    by blast
+  next
+    case (Dmn_gm x2)
+    then show ?thesis 
+    using assms apply (simp add:is_nbd_struct_def GLs_lift_nbd_def GLs_game_subst_def subst_cx_compat lift_game_interp_comat carrier_of_def)
+    
+  qed
+next
+  case (GLs_Dual x)
+  then show ?case sorry
+next
+  case (GLs_Test x)
+  then show ?case sorry
+next
+  case (GLs_Choice x1 x2)
+  then show ?case sorry
+next
+  case (GLs_Seq x1 x2)
+  then show ?case sorry
+next
+  case (GLs_Star x)
+  then show ?case sorry
+next
+  case (GLs_Atm_fml x)
+  then show ?case sorry
+next
+  case (GLs_Not x)
+  then show ?case sorry
+next
+  case (GLs_Or x1 x2)
+  then show ?case sorry
+next
+  case (GLs_Mod x1 x2)
+  then show ?case sorry
+qed
+
+lemma GLs_And_sem : "GLs_fml_sem N (GLs_And f1 f2) = GLs_fml_sem N f1 \<inter> GLs_fml_sem N f2"
+  unfolding GLs_And_def apply auto
 
 
 fun GLs_ext_fml_sem :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_ext_fml \<Rightarrow> GLs_sub_world_type"
@@ -473,7 +543,7 @@ proof
     (\<forall>p. PropInterp (GLs_lift_nbd N) p \<subseteq> World (GLs_lift_nbd N))" by simp
 qed
 
-lemma GLs_sem_wd:
+lemma GLs_ext_sem_wd:
   fixes N:: "ground_type Nbd_Struct"
   and f:: "GLs_ext_fml"
   and g:: "GLs_ext_game"
@@ -587,7 +657,7 @@ next
          GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) (GLs_ext_Dual x)) A"
       proof assume P2:"A \<subseteq> World N \<times> ALL_CX"
          have "GLs_ext_game_sem (GLs_lift_nbd N) x \<in> Pow (World N\<times> ALL_CX) \<rightarrow> Pow (World N \<times> ALL_CX)"
-           by (simp add: GLs_sem_wd(2) nbd_lift_nbd[of "N"] assms(1))
+           by (simp add: GLs_ext_sem_wd(2) nbd_lift_nbd[of "N"] assms(1))
          from P2 this GLs_eff_fn_double_dual[of "A""N""GLs_ext_game_sem (GLs_lift_nbd N) x"]
          show "GLs_ext_game_sem (GLs_lift_nbd N) (GLs_syn_dual (GLs_ext_Dual x)) A = GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) (GLs_ext_Dual x)) A"
            by (simp add: GLs_dual_eff_fn_def)
@@ -598,7 +668,7 @@ next
   case (GLs_ext_Test x)
   then show ?case
   proof -
-    have "GLs_ext_fml_sem (GLs_lift_nbd N) x \<subseteq> World N\<times> ALL_CX" using GLs_sem_wd assms by auto
+    have "GLs_ext_fml_sem (GLs_lift_nbd N) x \<subseteq> World N\<times> ALL_CX" using GLs_ext_sem_wd assms by auto
     thus ?case using sabo_comp_dm_andor assms
     by (smt (verit, ccfv_threshold) GLs_dual_eff_fn_def GLs_ext_game_sem.simps(5,6) GLs_lift_nbd_def GLs_syn_dual.simps(5) Int_Un_eq(1) Nbd_Struct.select_convs(1)
         Un_Int_assoc_eq boolean_algebra.conj_zero_right sabo_comp_def sabo_dbl_comp sup.absorb_iff2)
@@ -620,9 +690,9 @@ and Q2:"\<forall>A\<subseteq>World N \<times> ALL_CX. GLs_ext_game_sem (GLs_lift
       apply (rule)
     proof - fix A assume Q3:"A \<subseteq> World N \<times> ALL_CX"
       have P1:"GLs_ext_game_sem (GLs_lift_nbd N) x1 \<in> Pow (World N\<times>ALL_CX) \<rightarrow> Pow (World N\<times> ALL_CX)" 
-        using assms(1) nbd_lift_nbd[of "N"] GLs_sem_wd by (auto simp add:is_nbd_struct_def)
+        using assms(1) nbd_lift_nbd[of "N"] GLs_ext_sem_wd by (auto simp add:is_nbd_struct_def)
       have P2:"GLs_ext_game_sem (GLs_lift_nbd N) x2 \<in> Pow (World N\<times>ALL_CX) \<rightarrow> Pow (World N\<times> ALL_CX)" 
-        using assms(1) nbd_lift_nbd[of "N"] GLs_sem_wd by (auto simp add:is_nbd_struct_def)
+        using assms(1) nbd_lift_nbd[of "N"] GLs_ext_sem_wd by (auto simp add:is_nbd_struct_def)
       from P1 P2 Q3
       GLs_dual_eff_fn_demorgan[of "A""GLs_lift_nbd N" "GLs_ext_game_sem (GLs_lift_nbd N) x1" "GLs_ext_game_sem (GLs_lift_nbd N) x2"]
       show "GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) x1) A \<union> GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) x2) A =
@@ -637,10 +707,10 @@ next
   proof - fix A
     assume Q1:"GLs_ext_fml_sem (GLs_lift_nbd N) (GLs_syn_comp x) = sabo_comp (GLs_lift_nbd N) (GLs_ext_fml_sem (GLs_lift_nbd N) x)"
       and Q2:"A \<subseteq> World N \<times> ALL_CX"
-    have P1:"GLs_ext_fml_sem (GLs_lift_nbd N) x \<subseteq> World N\<times> ALL_CX" using GLs_sem_wd assms by auto
+    have P1:"GLs_ext_fml_sem (GLs_lift_nbd N) x \<subseteq> World N\<times> ALL_CX" using GLs_ext_sem_wd assms by auto
     have P2:"sabo_comp (GLs_lift_nbd N) A \<subseteq> World N\<times> ALL_CX" using Q2 sabo_comp_compat[of "A" "GLs_lift_nbd N"] GLs_lift_nbd_def by (auto)
     have P3: "sabo_comp (GLs_lift_nbd N) (sabo_comp (GLs_lift_nbd N) A) = A" using sabo_dbl_comp Q2 by auto
-    have P4: "GLs_ext_fml_sem (GLs_lift_nbd N) x \<subseteq> World N\<times> ALL_CX" using assms GLs_sem_wd(1) by auto
+    have P4: "GLs_ext_fml_sem (GLs_lift_nbd N) x \<subseteq> World N\<times> ALL_CX" using assms GLs_ext_sem_wd(1) by auto
     from P4 have P5: "sabo_comp (GLs_lift_nbd N) (GLs_ext_fml_sem (GLs_lift_nbd N) x) \<subseteq> World N\<times> ALL_CX" 
       using sabo_comp_compat[of "GLs_ext_fml_sem (GLs_lift_nbd N) x" "GLs_lift_nbd N"] by (auto simp add:GLs_lift_nbd_def)
     have P6: "sabo_comp (GLs_lift_nbd N) 
@@ -671,9 +741,9 @@ next
       
    proof -
      have "GLs_ext_game_sem (GLs_lift_nbd N) x1 \<in> Pow (World N\<times> ALL_CX) \<rightarrow> Pow (World N\<times> ALL_CX)" 
-       using assms nbd_lift_nbd GLs_sem_wd by simp
+       using assms nbd_lift_nbd GLs_ext_sem_wd by simp
 
-     from Q1 sabo_comp_compat[of "A" "GLs_lift_nbd N"] GLs_sem_wd(2)[of "N""x1"] assms 
+     from Q1 sabo_comp_compat[of "A" "GLs_lift_nbd N"] GLs_ext_sem_wd(2)[of "N""x1"] assms 
        GLs_dual_eff_fn_compat[of "N" "GLs_ext_game_sem (GLs_lift_nbd N) x1" ]
      have P3:"GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) x1) A \<subseteq> World N\<times>ALL_CX" 
        by blast
@@ -683,7 +753,7 @@ next
        by simp
 
      from GLs_dual_eff_fn_composition[of "A" "N" "GLs_ext_game_sem (GLs_lift_nbd N) x1" "GLs_ext_game_sem (GLs_lift_nbd N) x2"]
-          GLs_sem_wd(2)[of "N"]
+          GLs_ext_sem_wd(2)[of "N"]
           Q1 assms
      have "GLs_dual_eff_fn (GLs_lift_nbd N) (\<lambda>x. GLs_ext_game_sem (GLs_lift_nbd N) x2 (GLs_ext_game_sem (GLs_lift_nbd N) x1 x)) A =
     GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) x2) (GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) x1) A)"
@@ -731,7 +801,7 @@ next
           \<and> sabo_comp (GLs_lift_nbd N) A \<subseteq> B
           \<and> GLs_ext_game_sem (GLs_lift_nbd N) x B \<subseteq> B}"
           using sabo_dbl_comp sabo_comp_homo GLs_dual_eff_fn_def
-          by (smt (verit, ccfv_SIG) Collect_cong GLs_lift_nbd_def GLs_sem_wd(2) Nbd_Struct.select_convs(1) isStruct)
+          by (smt (verit, ccfv_SIG) Collect_cong GLs_lift_nbd_def GLs_ext_sem_wd(2) Nbd_Struct.select_convs(1) isStruct)
         finally have L2:"?LHS = \<Union> {sabo_comp (GLs_lift_nbd N) B| B. B \<subseteq> World (GLs_lift_nbd N) 
           \<and> sabo_comp (GLs_lift_nbd N) A \<subseteq> B
           \<and> GLs_ext_game_sem (GLs_lift_nbd N) x B \<subseteq> B}" by auto
@@ -783,7 +853,7 @@ next
             \<and> A \<subseteq> B 
             \<and> sabo_comp (GLs_lift_nbd N) B \<subseteq> GLs_ext_game_sem (GLs_lift_nbd N) x (sabo_comp (GLs_lift_nbd N) B)}"
           using sabo_dbl_comp sabo_comp_homo
-          by (metis (no_types, lifting) GLs_lift_nbd_def GLs_sem_wd(2) Nbd_Struct.select_convs(1) isStruct sabo_comp_compat)
+          by (metis (no_types, lifting) GLs_lift_nbd_def GLs_ext_sem_wd(2) Nbd_Struct.select_convs(1) isStruct sabo_comp_compat)
         finally have L2:"?LHS = ambient_inter (World (GLs_lift_nbd N)) {B. B \<subseteq> World (GLs_lift_nbd N) 
             \<and> A \<subseteq> B 
             \<and> sabo_comp (GLs_lift_nbd N) B \<subseteq> GLs_ext_game_sem (GLs_lift_nbd N) x (sabo_comp (GLs_lift_nbd N) B)}" by auto
@@ -799,22 +869,22 @@ next
   case (GLs_ext_Not x)
   then show ?case apply simp 
   proof -
-    have "GLs_ext_fml_sem (GLs_lift_nbd N) x \<subseteq> World N\<times>ALL_CX" using assms(1) GLs_sem_wd(1)[of "N""x"] by auto
+    have "GLs_ext_fml_sem (GLs_lift_nbd N) x \<subseteq> World N\<times>ALL_CX" using assms(1) GLs_ext_sem_wd(1)[of "N""x"] by auto
     then show "GLs_ext_fml_sem (GLs_lift_nbd N) x = sabo_comp (GLs_lift_nbd N) (sabo_comp (GLs_lift_nbd N) (GLs_ext_fml_sem (GLs_lift_nbd N) x))"
       using sabo_dbl_comp by auto
   qed
 next
   case (GLs_ext_Or x1 x2)
   then show ?case
-  using GLs_lift_nbd_def GLs_sem_wd(1) isStruct sabo_comp_dm_orand by auto
+  using GLs_lift_nbd_def GLs_ext_sem_wd(1) isStruct sabo_comp_dm_orand by auto
 next
   case (GLs_ext_And x1 x2)
   then show ?case
-  using GLs_lift_nbd_def GLs_sem_wd(1) isStruct sabo_comp_dm_andor by force
+  using GLs_lift_nbd_def GLs_ext_sem_wd(1) isStruct sabo_comp_dm_andor by force
 next
   case (GLs_ext_Mod x1 x2)
   then show ?case
-  by (metis GLs_dual_eff_fn_def GLs_ext_fml_sem.simps(5) GLs_sem_wd(1) GLs_syn_comp.simps(5) isStruct sabo_dbl_comp)
+  by (metis GLs_dual_eff_fn_def GLs_ext_fml_sem.simps(5) GLs_ext_sem_wd(1) GLs_syn_comp.simps(5) isStruct sabo_dbl_comp)
 qed
 
 section \<open>The RGL extension of base, with world structure un-modified\<close>
