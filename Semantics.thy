@@ -453,7 +453,7 @@ fun GLs_fml_sem :: "GLs_ground_type Nbd_Struct \<Rightarrow> GLs_fml \<Rightarro
 | "GLs_game_sem N (GLs_Sabo (Dmn_gm a)) A = GLs_game_Dsubst N A a"
 | "GLs_game_sem N (GLs_Dual g) A = GLs_dual_eff_fn N (GLs_game_sem N g) A"
 | "GLs_game_sem N (GLs_Choice a b) A = (GLs_game_sem N a A) \<union> (GLs_game_sem N b A)"
-| "GLs_game_sem N (GLs_Seq a b) A = GLs_game_sem N a (GLs_game_sem N b A)"
+| "GLs_game_sem N (GLs_Seq a b) A = GLs_game_sem N b (GLs_game_sem N a A)"
 | "GLs_game_sem N (GLs_Star a) A = ambient_inter (World N) { B \<in> Pow (World N). A \<union> GLs_game_sem N a B \<subseteq> B}"
 
 lemma GLs_sem_wd:
@@ -668,9 +668,30 @@ next
 next
   case (GLs_Seq x1 x2)
   then show ?case 
+  proof - assume a1:"\<forall>A\<subseteq>World N \<times> ALL_CX. GLs_game_sem (GLs_lift_nbd N) (GLs_sy_dual x1) A = GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_game_sem (GLs_lift_nbd N) x1) A"
+    and a2:"\<forall>A\<subseteq>World N \<times> ALL_CX. GLs_game_sem (GLs_lift_nbd N) (GLs_sy_dual x2) A = GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_game_sem (GLs_lift_nbd N) x2) A"
+    show "\<forall>A\<subseteq> World N\<times> ALL_CX. GLs_game_sem (GLs_lift_nbd N) (GLs_sy_dual (GLs_Seq x1 x2)) A = GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_game_sem (GLs_lift_nbd N) (GLs_Seq x1 x2)) A"
+      apply (simp)
+      apply rule
+    proof
+      fix A assume a3:" A\<subseteq> World N\<times> ALL_CX"
+      from a1 a3 
+      have a1':"GLs_game_sem (GLs_lift_nbd N) (GLs_sy_dual x1) A = GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_game_sem (GLs_lift_nbd N) x1) A" by auto
+      
+      from a3 GLs_sem_wd(2)[of "N""x1"] assms(1) have b1:"GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_game_sem (GLs_lift_nbd N) x1) A \<subseteq> World N\<times> ALL_CX" by (metis GLs_game_sem.simps(6) GLs_sem_wd(2))
+
+      then have "GLs_game_sem (GLs_lift_nbd N) (GLs_sy_dual x2) (GLs_game_sem (GLs_lift_nbd N) (GLs_sy_dual x1) A) = GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_game_sem (GLs_lift_nbd N) x2) (GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_game_sem (GLs_lift_nbd N) x1) A)"
+        using a2 a1' by auto
+      then show "GLs_game_sem (GLs_lift_nbd N) (GLs_sy_dual x2) (GLs_game_sem (GLs_lift_nbd N) (GLs_sy_dual x1) A) = GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_game_sem (GLs_lift_nbd N) (GLs_Seq x1 x2)) A"
+        using GLs_dual_eff_fn_composition assms is_nbd_struct_def carrier_of_def a3 GLs_dual_eff_fn_def GLs_sem_wd(2) by auto
+    qed
+  qed
 next
   case (GLs_Star x)
-  then show ?case sorry
+  then show ?case 
+    apply (simp add:GLs_DStar_def GLs_dual_eff_fn_def)
+    using sabo_comp_dm_general_andor sabo_comp_homo sabo_dbl_comp GLs_lift_nbd_def sabo_comp_compat assms GLs_sem_wd
+    by (smt (verit, ccfv_SIG) Collect_cong Nbd_Struct.select_convs(1))
 next
   case (GLs_Atm_fml x)
   then show ?case by auto
@@ -686,7 +707,8 @@ next
     by simp
 next
   case (GLs_Mod x1 x2)
-  then show ?case apply simp
+  then show ?case
+    by (metis GLs_dual_eff_fn_def GLs_fml_sem.simps(4) GLs_sem_wd(1) GLs_sy_comp.simps(4) assms sabo_dbl_comp)
 qed
 
 
@@ -939,7 +961,7 @@ next
     show "\<forall>A\<subseteq>World N \<times> ALL_CX.
        GLs_ext_game_sem (GLs_lift_nbd N) (GLs_syn_dual (GLs_ext_Star x)) A = GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) (GLs_ext_Star x)) A"
       apply rule
-    proof
+    proofsabo_comp_dm_general_andor
       fix A assume P0:"A\<subseteq>World N \<times> ALL_CX"
       show "GLs_ext_game_sem (GLs_lift_nbd N) (GLs_syn_dual (GLs_ext_Star x)) A = GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_ext_game_sem (GLs_lift_nbd N) (GLs_ext_Star x)) A"
         apply (simp add:GLs_dual_eff_fn_def)
