@@ -64,47 +64,8 @@ fun GLs_sy_comp :: "GLs_fml \<Rightarrow> GLs_fml"
 |   "GLs_sy_dual (GLs_Seq g1 g2) = GLs_Seq (GLs_sy_dual g1) (GLs_sy_dual g2)"
 |   "GLs_sy_dual (GLs_Star g) = GLs_DStar (GLs_sy_dual g)"
 
-datatype GLs_ext_game =
-  GLs_ext_Atm_Game "Atm_game"
-  | GLs_ext_Sabo "Atm_game"
-  | GLs_ext_DSabo "Atm_game"
-  | GLs_ext_Dual "GLs_ext_game"
-  | GLs_ext_Test "GLs_ext_fml"
-  | GLs_ext_Choice "GLs_ext_game" "GLs_ext_game"
-  | GLs_ext_DChoice "GLs_ext_game" "GLs_ext_game"
-  | GLs_ext_DTest "GLs_ext_fml"
-  | GLs_ext_Seq "GLs_ext_game" "GLs_ext_game"
-  | GLs_ext_Star "GLs_ext_game"
-  | GLs_ext_Cross "GLs_ext_game"
-and GLs_ext_fml = 
-  GLs_ext_Atm_fml "Atm_fml"
-| GLs_ext_Not "GLs_ext_fml"
-| GLs_ext_Or "GLs_ext_fml" "GLs_ext_fml"
-| GLs_ext_And "GLs_ext_fml" "GLs_ext_fml"
-| GLs_ext_Mod "GLs_ext_game" "GLs_ext_fml"
-
-fun GLs_syn_comp :: "GLs_ext_fml \<Rightarrow> GLs_ext_fml"
-  and GLs_syn_dual :: "GLs_ext_game \<Rightarrow> GLs_ext_game"
-  where 
-  "GLs_syn_comp (GLs_ext_Atm_fml P) = GLs_ext_Not (GLs_ext_Atm_fml P)"
-|   "GLs_syn_comp (GLs_ext_Not f) = f"
-|   "GLs_syn_comp (GLs_ext_Or f1 f2) = GLs_ext_And (GLs_syn_comp f1) (GLs_syn_comp f2)"
-|   "GLs_syn_comp (GLs_ext_And f1 f2) = GLs_ext_Or (GLs_syn_comp f1) (GLs_syn_comp f2)"
-|   "GLs_syn_comp (GLs_ext_Mod g f) = GLs_ext_Mod (GLs_syn_dual g) (GLs_syn_comp f)"
-|   "GLs_syn_dual (GLs_ext_Atm_Game a) = GLs_ext_Dual (GLs_ext_Atm_Game a)"
-|   "GLs_syn_dual (GLs_ext_Sabo a) = GLs_ext_DSabo a"
-|   "GLs_syn_dual (GLs_ext_DSabo a) = GLs_ext_Sabo a"   
-|   "GLs_syn_dual (GLs_ext_Dual g) = g"
-|   "GLs_syn_dual (GLs_ext_Test f) = GLs_ext_DTest f"
-|   "GLs_syn_dual (GLs_ext_Choice g1 g2) = GLs_ext_DChoice (GLs_syn_dual g1) (GLs_syn_dual g2)"
-|   "GLs_syn_dual (GLs_ext_DChoice g1 g2) = GLs_ext_Choice (GLs_syn_dual g1) (GLs_syn_dual g2)"
-|   "GLs_syn_dual (GLs_ext_DTest f) = GLs_ext_Test f"
-|   "GLs_syn_dual (GLs_ext_Seq g1 g2) = GLs_ext_Seq (GLs_syn_dual g1) (GLs_syn_dual g2)"
-|   "GLs_syn_dual (GLs_ext_Star g) = GLs_ext_Cross (GLs_syn_dual g)"
-|   "GLs_syn_dual (GLs_ext_Cross g) = GLs_ext_Star (GLs_syn_dual g)"
-
 datatype 'c RGL_game =
-  RGL_Atm_Game "Atm_game"
+  RGL_Atm_Game "atm_gm"
   | RGL_Var 'c
   | RGL_Dual "'c RGL_game"
   | RGL_Test "'c RGL_fml" 
@@ -116,80 +77,82 @@ and
     RGL_Atm_fml "Atm_fml"
   | RGL_Not "'c RGL_fml"
   | RGL_Or "'c RGL_fml" "'c RGL_fml"
-  | RGL_Mod "'c RGL_game" "'c RGL_fml"
+  | RGL_Mod "'c RGL_game" "'c RGL_fml" 
 
-datatype 'c RGL_ext_game =
-  RGL_ext_Atm_Game "Atm_game"
-  | RGL_ext_Atm_Game_Dual "Atm_game"
-  | RGL_ext_Var 'c
-  | RGL_ext_Var_Dual 'c
-  | RGL_ext_Test "'c RGL_ext_fml"
-  | RGL_ext_Test_Dual "'c RGL_ext_fml"
-  | RGL_ext_Choice "'c RGL_ext_game" "'c RGL_ext_game"
-  | RGL_ext_Choice_Dual "'c RGL_ext_game" "'c RGL_ext_game"
-  | RGL_ext_Seq "'c RGL_ext_game" "'c RGL_ext_game"
-  | RGL_ext_Rec 'c "'c RGL_ext_game"
-  | RGL_ext_Rec_Dual 'c "'c RGL_ext_game"
-and 
-  'c RGL_ext_fml = 
-    RGL_ext_Atm_fml "Atm_fml"
-  | RGL_ext_Not "'c RGL_ext_fml"
-  | RGL_ext_Or "'c RGL_ext_fml" "'c RGL_ext_fml"
-  | RGL_ext_And "'c RGL_ext_fml" "'c RGL_ext_fml"
-  | RGL_ext_Mod "'c RGL_ext_game" "'c RGL_ext_fml"   
+\<comment>\<open>replaces every free occurrence of x with x^d.
+  Does not reduce double duals.\<close>
+fun RGL_dual_free :: "'c \<Rightarrow> 'c RGL_game \<Rightarrow> 'c RGL_game" 
+  and RGL_dual_free_fml :: "'c \<Rightarrow> 'c RGL_fml \<Rightarrow> 'c RGL_fml"
+  where
+"RGL_dual_free x (RGL_Var y) = (if x=y then (RGL_Dual (RGL_Var x)) else (RGL_Var y))"
+| "RGL_dual_free x (RGL_Dual g) = RGL_Dual (RGL_dual_free x g)"
+| "RGL_dual_free x (RGL_Atm_Game a) = RGL_Atm_Game a"
+| "RGL_dual_free x (RGL_Rec y g) = (if x=y then (RGL_Rec y g) else RGL_Rec y (RGL_dual_free x g))"
+| "RGL_dual_free x (RGL_Choice g1 g2) = RGL_Choice (RGL_dual_free x g1) (RGL_dual_free x g2)"
+| "RGL_dual_free x (RGL_Seq g1 g2) = RGL_Seq (RGL_dual_free x g1) (RGL_dual_free x g2)"
+| "RGL_dual_free x (RGL_Test f) = RGL_Test (RGL_dual_free_fml x f)"
+| "RGL_dual_free_fml x (RGL_Atm_fml P) = RGL_Atm_fml P"
+| "RGL_dual_free_fml x (RGL_Not f) = RGL_Not (RGL_dual_free_fml x f)"
+| "RGL_dual_free_fml x (RGL_Or f1 f2)  = RGL_Or (RGL_dual_free_fml x f1) (RGL_dual_free_fml x f2)"
+| "RGL_dual_free_fml x (RGL_Mod g f) = RGL_Mod (RGL_dual_free x g) (RGL_dual_free_fml x f)"
 
-definition RGL_ext_fml_atomic :: "'c RGL_ext_fml \<Rightarrow> bool" where
-  "RGL_ext_fml_atomic f \<equiv> \<exists>P. (f = RGL_ext_Atm_fml P)"
+\<comment>\<open>detects all free instances of x^d and replaces it by x, through pattern matching in the Dual case.
+  Does not reduce double duals.\<close>
+fun RGL_undual_free :: "'c \<Rightarrow> 'c RGL_game \<Rightarrow> 'c RGL_game"
+  and RGL_undual_free_fml :: "'c \<Rightarrow> 'c RGL_fml \<Rightarrow> 'c RGL_fml" where
+  "RGL_undual_free x (RGL_Var y) = (RGL_Var y)"
+| "RGL_undual_free x (RGL_Dual (RGL_Var y)) = (if x=y then RGL_Var x else RGL_Dual (RGL_Var y))"
+| "RGL_undual_free x (RGL_Dual g) = RGL_Dual (RGL_undual_free x g)"
+| "RGL_undual_free x (RGL_Atm_Game a) = RGL_Atm_Game a"
+| "RGL_undual_free x (RGL_Rec y g) = (if x=y then (RGL_Rec y g) else RGL_Rec y (RGL_undual_free x g))"
+| "RGL_undual_free x (RGL_Choice g1 g2) = RGL_Choice (RGL_undual_free x g1) (RGL_undual_free x g2)"
+| "RGL_undual_free x (RGL_Seq g1 g2) = RGL_Seq (RGL_undual_free x g1) (RGL_undual_free x g2)"
+| "RGL_undual_free x (RGL_Test f) = RGL_Test (RGL_undual_free_fml x f)"
+| "RGL_undual_free_fml x (RGL_Mod g f) = RGL_Mod (RGL_undual_free x g) (RGL_undual_free_fml x f)"
+| "RGL_undual_free_fml x (RGL_Or f1 f2) = RGL_Or (RGL_undual_free_fml x f1) (RGL_undual_free_fml x f2)"
+| "RGL_undual_free_fml x (RGL_Not f) = RGL_Not (RGL_undual_free_fml x f)"
+| "RGL_undual_free_fml x (RGL_Atm_fml P) = RGL_Atm_fml P"
 
-\<comment>\<open>Tests if an RGL_ext_fml or an RGL_ext_game is in normal form\<close>
-definition RGL_ext_fml_normal :: "'c RGL_ext_fml \<Rightarrow> bool" where
-  "RGL_ext_fml_normal f \<equiv> \<forall>g. (f = RGL_ext_Not g \<longrightarrow> RGL_ext_fml_atomic g)"
+definition RGL_And where "RGL_And A B = RGL_Not (RGL_Or (RGL_Not A) (RGL_Not B))"
 
+definition RGL_DTest where "RGL_DTest f = RGL_Dual (RGL_Test f)"
 
-\<comment>\<open>Tests if a RGL_ext_fml contains no explicit ()^d constructor on a variable x.
-  Does not go through binders.
-\<close>
-primrec RGL_ext_game_no_dual :: "'c \<Rightarrow> 'c RGL_ext_game \<Rightarrow> bool"
-  and RGL_ext_fml_no_dual :: "'c \<Rightarrow> 'c RGL_ext_fml \<Rightarrow> bool" where
-  "RGL_ext_game_no_dual x (RGL_ext_Atm_Game a) = True"
-|   "RGL_ext_game_no_dual x (RGL_ext_Atm_Game_Dual a) = True"
-|   "RGL_ext_game_no_dual x (RGL_ext_Var y) = True"
-|   "RGL_ext_game_no_dual x (RGL_ext_Var_Dual y) = (if x=y then False else True)"
-|   "RGL_ext_game_no_dual x (RGL_ext_Test f) = RGL_ext_fml_no_dual x f"
-|   "RGL_ext_game_no_dual x (RGL_ext_Test_Dual f) = RGL_ext_fml_no_dual x f"
-|   "RGL_ext_game_no_dual x (RGL_ext_Choice g1 g2) = (RGL_ext_game_no_dual x g1 \<and> RGL_ext_game_no_dual x g2)"
-|   "RGL_ext_game_no_dual x (RGL_ext_Choice_Dual g1 g2) = (RGL_ext_game_no_dual x g1 \<and> RGL_ext_game_no_dual x g2)"
-|   "RGL_ext_game_no_dual x (RGL_ext_Seq g1 g2) = (RGL_ext_game_no_dual x g1 \<and> RGL_ext_game_no_dual x g2)"
-|   "RGL_ext_game_no_dual x (RGL_ext_Rec y g) = (if x=y then True else RGL_ext_game_no_dual x g)"
-|   "RGL_ext_game_no_dual x (RGL_ext_Rec_Dual y g) = (if x=y then True else RGL_ext_game_no_dual x g)"
-|   "RGL_ext_fml_no_dual x (RGL_ext_Atm_fml P) = True"
-|   "RGL_ext_fml_no_dual x (RGL_ext_Not f) = RGL_ext_fml_no_dual x f"
-|   "RGL_ext_fml_no_dual x (RGL_ext_Or f1 f2) = (RGL_ext_fml_no_dual x f1 \<and> RGL_ext_fml_no_dual x f2)"
-|   "RGL_ext_fml_no_dual x (RGL_ext_And f1 f2) = (RGL_ext_fml_no_dual x f1 \<and> RGL_ext_fml_no_dual x f2)"
-|   "RGL_ext_fml_no_dual x (RGL_ext_Mod g f) = (RGL_ext_game_no_dual x g \<and> RGL_ext_fml_no_dual x f) "
+definition RGL_DChoice where "RGL_DChoice g1 g2 = RGL_Dual (RGL_Choice (RGL_Dual g1) (RGL_Dual g2))"
 
+definition RGL_DRec where "RGL_DRec x g = RGL_Dual (RGL_undual_free x (RGL_Rec x g))"
 
-\<comment>\<open>outputs free variables of RGL fml and games\<close>
-primrec free_var_ext:: "'c RGL_ext_fml \<Rightarrow> 'c set" 
-  and free_var_ext_game where
-  "free_var_ext (RGL_ext_Atm_fml f) = {}"
-|  "free_var_ext (RGL_ext_Not f) = free_var_ext f"
-|  "free_var_ext (RGL_ext_Or f g) = free_var_ext f \<union> free_var_ext g"
-|  "free_var_ext (RGL_ext_And f g) = free_var_ext f \<union> free_var_ext g"
-|  "free_var_ext (RGL_ext_Mod g f) = free_var_ext_game g"
-|  "free_var_ext_game (RGL_ext_Atm_Game a) = {}"
-|  "free_var_ext_game (RGL_ext_Atm_Game_Dual a) = {}"
-|  "free_var_ext_game (RGL_ext_Var x) = {x}"
-|  "free_var_ext_game (RGL_ext_Var_Dual x) = {x}"
-|  "free_var_ext_game (RGL_ext_Test f) = free_var_ext f"
-|  "free_var_ext_game (RGL_ext_Test_Dual f) = free_var_ext f"
-|  "free_var_ext_game (RGL_ext_Choice g1 g2) = free_var_ext_game g1 \<union> free_var_ext_game g2"
-|  "free_var_ext_game (RGL_ext_Choice_Dual g1 g2) = free_var_ext_game g1 \<union> free_var_ext_game g2"
-|  "free_var_ext_game (RGL_ext_Seq g1 g2) = free_var_ext_game g1 \<union> free_var_ext_game g2"
-|  "free_var_ext_game (RGL_ext_Rec x g) = free_var_ext_game g - {x}"
-|  "free_var_ext_game (RGL_ext_Rec_Dual x g) = free_var_ext_game g - {x}"
+fun RGL_sy_dual :: "'c RGL_game \<Rightarrow> 'c RGL_game" 
+  and RGL_sy_comp :: "'c RGL_fml \<Rightarrow> 'c RGL_fml" where
+    "RGL_sy_dual (RGL_Atm_Game (Agl_gm a)) = RGL_Atm_Game (Dmn_gm a)"
+  | "RGL_sy_dual (RGL_Atm_Game (Dmn_gm a)) = RGL_Atm_Game (Agl_gm a)"
+  | "RGL_sy_dual (RGL_Var x) = RGL_Dual (RGL_Var x)"
+  | "RGL_sy_dual (RGL_Dual g) = g"
+  | "RGL_sy_dual (RGL_Test f) = RGL_DTest f"
+  | "RGL_sy_dual (RGL_Choice g1 g2) = RGL_DChoice (RGL_sy_dual g1) (RGL_sy_dual g2)"
+  | "RGL_sy_dual (RGL_Seq g1 g2) = RGL_Seq (RGL_sy_dual g1) (RGL_sy_dual g2)"
+  | "RGL_sy_dual (RGL_Rec x g) = RGL_DRec x (RGL_dual_free x (RGL_sy_dual g))"
 
-primrec free_var:: "'c RGL_fml \<Rightarrow> 'c set" 
+  | "RGL_sy_comp (RGL_Atm_fml P) = RGL_Not (RGL_Atm_fml P)"
+  | "RGL_sy_comp (RGL_Not f) = f"
+  | "RGL_sy_comp (RGL_Or f1 f2) = RGL_And (RGL_sy_comp f1) (RGL_sy_comp f2)"
+  | "RGL_sy_comp (RGL_Mod g f) = RGL_Mod (RGL_sy_dual g) (RGL_sy_comp f)"
+
+\<comment>\<open>reduces RGL fml and game to normal form, using syntactic dual and comp.\<close>
+fun RGL_red_game :: "'c RGL_game \<Rightarrow> 'c RGL_game"
+and RGL_red_fml :: "'c RGL_fml \<Rightarrow> 'c RGL_fml" where
+    "RGL_red_game (RGL_Dual g) = RGL_sy_dual g"
+  | "RGL_red_game (RGL_Test f) = RGL_Test (RGL_red_fml f)"
+  | "RGL_red_game (RGL_Choice g1 g2) = RGL_Choice (RGL_red_game g1) (RGL_red_game g2)"
+  | "RGL_red_game (RGL_Seq g1 g2) = RGL_Seq (RGL_red_game g1) (RGL_red_game g2)"
+  | "RGL_red_game (RGL_Rec x g) = RGL_Rec x (RGL_red_game g)"
+  | "RGL_red_game g = g"
+  | "RGL_red_fml (RGL_Not f) = RGL_sy_comp f"
+  | "RGL_red_fml (RGL_Or f1 f2) = RGL_Or (RGL_red_fml f1) (RGL_red_fml f2)"
+  | "RGL_red_fml (RGL_Mod g f) = RGL_Mod (RGL_red_game g) (RGL_red_fml f)"
+  | "RGL_red_fml (RGL_Atm_fml P) = RGL_Atm_fml P"
+
+\<comment>\<open>collects free variables of RGL fml and games\<close>
+primrec free_var:: "'c RGL_fml \<Rightarrow> 'c set"
   and free_var_game :: "'c RGL_game \<Rightarrow> 'c set" where
   "free_var (RGL_Atm_fml f) = {}"
 |  "free_var (RGL_Not f) = free_var f"
@@ -203,13 +166,7 @@ primrec free_var:: "'c RGL_fml \<Rightarrow> 'c set"
 |  "free_var_game (RGL_Seq g1 g2) = free_var_game g1 \<union> free_var_game g2"
 |  "free_var_game (RGL_Rec x g) = free_var_game g - {x}"
 
-definition RGL_ext_game_no_free_dual :: "'c \<Rightarrow> 'c RGL_ext_game \<Rightarrow> bool" where
-  "RGL_ext_game_no_free_dual x g \<equiv> x\<in>free_var_ext_game g \<longrightarrow> RGL_ext_game_no_dual x g"
-
 \<comment>\<open>tests if an RGL fml is closed\<close>
-definition RGL_ext_fml_closed :: "'c RGL_ext_fml \<Rightarrow> bool" where
-  "RGL_ext_fml_closed f = (free_var_ext f = {})"
-
 definition RGL_fml_closed :: "'c RGL_fml \<Rightarrow> bool" where
   "RGL_fml_closed f = (free_var f = {})"
 
@@ -219,7 +176,7 @@ definition RGL_fml_closed :: "'c RGL_fml \<Rightarrow> bool" where
   hence we only need to worry about the forms ? and r.
 \<close>
 
-\<comment>\<open>This function tests if the given RGL game (not RGL_ext_game) contains a free variable x with ALL even number of duals.
+\<comment>\<open>This function tests if the given RGL game (not RGL_game) contains a free variable x with ALL even number of duals.
   For ?\<phi>, we need the modality in \<phi> to contain ALL even number of duals on x
   For Rec y g, if the tested variable x equals y, then x occurring in g does not belong to the current scope.
   
@@ -239,7 +196,6 @@ primrec RGL_even_dual :: "bool \<Rightarrow> 'c \<Rightarrow> 'c RGL_game \<Righ
 | "RGL_even_dual_fml n x (RGL_Not f) = RGL_even_dual_fml n x f"
 | "RGL_even_dual_fml n x (RGL_Or f1 f2) =  (RGL_even_dual_fml n x f1 \<and>  RGL_even_dual_fml n x f2)"
 | "RGL_even_dual_fml n x (RGL_Mod g f) = (RGL_even_dual n x g \<and> RGL_even_dual_fml n x f)"
-
 
 \<comment>\<open>Tests if an RGL recursive game is valid. A valid RGL recursive game is rx.a where a has an even number of duals over x
   When g is rx.h, the predicate tests above mentioned validity.
