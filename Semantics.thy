@@ -709,9 +709,156 @@ fun RGL_fml_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<
 | "RGL_game_sem N I (RGL_Seq g1 g2) A = (RGL_game_sem N I g2) ((RGL_game_sem N I g1) A)"
 | "RGL_game_sem N I (RGL_Rec x g) A =  (Lfp (World N) (\<lambda>u. (RGL_game_sem N (I(x:=u)) g))) A"
 
+lemma RGL_atm_interp_uniform [simp]: "RGL_game_sem N I (RGL_Atm_Game x) = RGL_game_sem N J (RGL_Atm_Game x)"
+  by (cases x) (auto)
 
-definition RGL_fixpt_op :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type \<Rightarrow> RGL_var_type RGL_game \<Rightarrow> RGL_eff_fn_type \<Rightarrow> RGL_eff_fn_type" where
+lemma RGL_var_interp_mono [simp]: assumes "fun_le u v"
+  shows "fun_le (RGL_game_sem N (I(x:=u)) (RGL_Var y)) (RGL_game_sem N (I(x:=v)) (RGL_Var y))"
+  by (metis (lifting) ext RGL_game_sem.simps(3) assms fun_le_def fun_upd_other fun_upd_same subset_iff)
+
+lemma RGL_closed_game_free_var [simp]: assumes "RGL_game_closed (RGL_Rec x g)"
+  shows "free_var_game g = {x} \<or> RGL_game_closed g"
+  using assms
+proof (induction g rule:RGL_game_induct)
+  case (RGL_Atm_Game a)
+  then show ?case by (auto simp add:RGL_game_closed_def)
+next
+  case (RGL_Var y)
+  then show ?case
+  proof (cases "x=y")
+    case True
+    then show ?thesis by auto
+  next
+    case False
+    then show ?thesis using RGL_Var.prems by (auto simp add:RGL_game_closed_def)
+  qed
+next
+  case (RGL_Dual g)
+  then show ?case by (auto simp add:RGL_game_closed_def)
+next
+  case (RGL_Test f)
+  then show ?case by (auto simp add:RGL_game_closed_def)
+next
+  case (RGL_Choice g1 g2)
+  then show ?case by (auto simp add:RGL_game_closed_def)
+next
+  case (RGL_Seq g1 g2)
+  then show ?case by (auto simp add:RGL_game_closed_def)
+next
+  case (RGL_Rec x g)
+  then show ?case by (auto simp add:RGL_game_closed_def)
+qed
+
+
+lemma RGL_test_interp_uniform: assumes "RGL_fml_closed f" and "RGL_game_closed g"
+  shows "RGL_fml_sem N I f = RGL_fml_sem N J f"
+        "RGL_game_sem N I g = RGL_game_sem N J g"
+  using assms
+proof (induction f and g)
+  case (RGL_Atm_Game x)
+  then show ?case by simp
+next
+  case (RGL_Var x)
+  then show ?case
+    using RGL_game_closed_def by force
+next
+  case (RGL_Dual g)
+  then show ?case apply auto
+  proof -
+    from RGL_Dual.prems(2) have "RGL_game_closed g" by (auto simp add:RGL_game_closed_def)
+    then show "dual_eff_fn N (RGL_game_sem N I g) = dual_eff_fn N (RGL_game_sem N J g)"
+      using RGL_Dual.IH assms(1) by presburger
+  qed
+next
+  case (RGL_Test f')
+  then show ?case 
+  proof -
+    from RGL_Test.prems(2) have "RGL_fml_closed f'" by (auto simp add:RGL_game_closed_def RGL_fml_closed_def)
+    then show "RGL_game_sem N I (RGL_Test f') = RGL_game_sem N J (RGL_Test f')"
+      using RGL_Test.IH assms by force
+  qed
+next
+  case (RGL_Choice g1 g2)
+  then show ?case
+  proof -
+    from RGL_Choice.prems(2) have a:"RGL_game_closed g1" by (auto simp add:RGL_game_closed_def)
+    from RGL_Choice.prems(2) have "RGL_game_closed g2" by (auto simp add:RGL_game_closed_def)
+    then show "RGL_game_sem N I (RGL_Choice g1 g2) = RGL_game_sem N J (RGL_Choice g1 g2)"
+      using RGL_Choice.IH a assms(1) by auto
+  qed
+next
+  case (RGL_Seq g1 g2)
+  then show ?case
+  proof -
+    from RGL_Seq.prems(2) have a:"RGL_game_closed g1" by (auto simp add:RGL_game_closed_def)
+    from RGL_Seq.prems(2) have "RGL_game_closed g2" by (auto simp add:RGL_game_closed_def)
+    then show "RGL_game_sem N I (RGL_Seq g1 g2) = RGL_game_sem N J (RGL_Seq g1 g2)"
+      using RGL_Seq.IH a assms by auto
+  qed
+next
+  case (RGL_Rec x g)
+  then show ?case
+  proof -
+    from RGL_Rec.prems(2) have "free_var_game g = {x} \<or> RGL_game_closed g" by simp
+    assume "free_var_game g = {x}"
+  qed
+next
+  case (RGL_Atm_fml x)
+  then show ?case sorry
+next
+  case (RGL_Not x)
+  then show ?case sorry
+next
+  case (RGL_Or x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Mod x1 x2)
+  then show ?case sorry
+qed
+
+
+definition RGL_fixpt_op:: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type \<Rightarrow> RGL_var_type RGL_game \<Rightarrow> RGL_eff_fn_type \<Rightarrow> RGL_eff_fn_type" where
   "RGL_fixpt_op N I x g u = RGL_game_sem N (I(x:=u)) g"
+
+lemma RGL_fixpt_compat:
+  assumes "fun_le u v" and "is_nbd_struct N" and "is_val N I"
+  shows "RGL_fml_sem N (I(x:=u)) f \<subseteq> RGL_fml_sem N (I(x:=v)) f"
+        "fun_le (RGL_game_sem N (I(x:=u)) g) (RGL_game_sem N (I(x:=v)) g)"
+proof (induction f and g)
+  case (RGL_Atm_Game x)
+  then show ?case using RGL_atm_interp_uniform
+    by (metis fun_le_def subsetI)
+next
+  case (RGL_Var x)
+  then show ?case using assms RGL_var_interp_mono fun_le_def by auto
+next
+  case (RGL_Dual g)
+  then show ?case 
+next
+  case (RGL_Test x)
+  then show ?case sorry
+next
+  case (RGL_Choice x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Seq x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Rec x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Atm_fml x)
+  then show ?case sorry
+next
+  case (RGL_Not x)
+  then show ?case sorry
+next
+  case (RGL_Or x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Mod x1 x2)
+  then show ?case sorry
+qed
 
 \<comment>\<open>lemma 3.5 of paper: If rx.\<alpha> is valid, then u\<rightarrow>N[\<alpha>]^I(x:=u) is monotone.
   uses induction on normal form.
@@ -723,7 +870,7 @@ lemma RGL_fixpt_op_mono:
     and I:: "RGL_var_type val"
     and x:: "RGL_var_type"
     and h:: "RGL_var_type RGL_game"
-  assumes "RGL_Rec_valid g" and "g = RGL_Rec x h" and "RGL_nml_game h" and "is_nbd_struct N" and "is_val N I"
+  assumes "RGL_game_valid g" and "g = RGL_Rec x h" and "RGL_nml_game h" and "is_nbd_struct N" and "is_val N I"
   shows "RGL_fixpt_op N I x h \<in> monotone_op_of (World N)"
   using assms
 proof (induction h arbitrary:x g rule: RGL_game_induct)
@@ -755,7 +902,7 @@ next
       then show ?thesis
       proof cases
         case Eq
-          from RGL_Dual.prems(1) RGL_Dual.prems(2) have "RGL_even_dual True x (RGL_Dual g')" by (simp add:RGL_Rec_valid_def)
+          from RGL_Dual.prems(1) RGL_Dual.prems(2) have "RGL_even_dual True x (RGL_Dual g')" by (simp add:RGL_game_valid_def RGL_Rec_valid_def)
           from this local.RGL_nml_DVar Eq have False by auto 
           then show ?thesis by simp
       next
@@ -778,7 +925,11 @@ next
       qed
     next
       case (RGL_nml_DTest f)
-      then show ?thesis sorry
+      then show ?thesis unfolding RGL_DTest_def RGL_fixpt_op_def apply simp
+      proof -
+        
+        show "RGL_fixpt_op N I x (RGL_Dual (RGL_Test f)) \<in> monotone_op_of (World N)"
+      qed
     next
       case (RGL_nml_DChoice g1 g2)
       then show ?thesis sorry

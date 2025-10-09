@@ -202,6 +202,8 @@ primrec free_var:: "'c RGL_fml \<Rightarrow> 'c set"
 definition RGL_fml_closed :: "'c RGL_fml \<Rightarrow> bool" where
   "RGL_fml_closed f = (free_var f = {})"
 
+definition RGL_game_closed where "RGL_game_closed g = (free_var_game g = {})"
+
 \<comment>\<open>An RGL game is in normal form if 1) ?\<phi> for closed \<phi> only; 2)rx.\<alpha>
   only has x occurring in a scope with even number of duals in \<alpha>. 
   Hence all are in normal form except in the negation of these cases;
@@ -239,7 +241,7 @@ definition RGL_Rec_valid :: "'c RGL_game \<Rightarrow> bool" where
 definition RGL_Test_valid :: "'c RGL_game \<Rightarrow> bool" where
   "RGL_Test_valid g \<equiv> \<forall>f. (g = RGL_Test f \<longrightarrow> RGL_fml_closed f)"
 
-definition RGL_game_valid :: "'c RGL_game \<Rightarrow> bool" where 
+definition RGL_game_valid :: "'c RGL_game \<Rightarrow> bool" where
   "RGL_game_valid g \<equiv> (RGL_Rec_valid g \<and> RGL_Test_valid g)"
 
 datatype Lmu_fml = 
