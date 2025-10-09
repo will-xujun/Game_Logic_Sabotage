@@ -10,7 +10,7 @@ begin
 type_synonym Atm_game = "int"
 type_synonym Atm_fml = "int"
 
-datatype atm_gm = Agl_gm "int" | Dmn_gm "int"
+datatype atm_gm = Agl_gm Atm_game | Dmn_gm Atm_game
 
 datatype GL_game = 
   GL_Atm_Game "Atm_game"
@@ -79,6 +79,20 @@ and
   | RGL_Or "'c RGL_fml" "'c RGL_fml"
   | RGL_Mod "'c RGL_game" "'c RGL_fml" 
 
+text \<open>Induction principles for RGL games and fmls\<close>
+
+lemma RGL_game_induct [case_names RGL_Atm_Game RGL_Var RGL_Dual RGL_Test RGL_Choice RGL_Seq RGL_Rec]:
+  "(\<And>a. P (RGL_Atm_Game a))
+    \<Longrightarrow> (\<And>x. P (RGL_Var x))
+    \<Longrightarrow> (\<And>g. P g \<Longrightarrow> P (RGL_Dual g))
+    \<Longrightarrow> (\<And>f. P (RGL_Test f))
+    \<Longrightarrow> (\<And>g1 g2. P g1 \<Longrightarrow> P g2 \<Longrightarrow> P (RGL_Choice g1 g2))
+    \<Longrightarrow> (\<And>g1 g2. P g1 \<Longrightarrow> P g2 \<Longrightarrow> P (RGL_Seq g1 g2))
+    \<Longrightarrow> (\<And>x g. P g \<Longrightarrow> P (RGL_Rec x g))
+    \<Longrightarrow> P \<alpha>
+  "
+  by (induction rule: RGL_game.induct) (auto)
+
 \<comment>\<open>replaces every free occurrence of x with x^d.
   Does not reduce double duals.\<close>
 fun RGL_dual_free :: "'c \<Rightarrow> 'c RGL_game \<Rightarrow> 'c RGL_game" 
@@ -121,6 +135,24 @@ definition RGL_DChoice where "RGL_DChoice g1 g2 = RGL_Dual (RGL_Choice (RGL_Dual
 
 definition RGL_DRec where "RGL_DRec x g = RGL_Dual (RGL_undual_free x (RGL_Rec x g))"
 
+inductive RGL_nml_game:: "'c RGL_game \<Rightarrow> bool"
+  and RGL_nml_fml :: "'c RGL_fml \<Rightarrow> bool" where
+    RGL_nml_Atm_game: "RGL_nml_game (RGL_Atm_Game a)"
+  | RGL_nml_Var: "RGL_nml_game (RGL_Var x)"
+  | RGL_nml_DVar: "RGL_nml_game (RGL_Dual (RGL_Var x))"
+  | RGL_nml_Test: "RGL_nml_fml f \<Longrightarrow> RGL_nml_game (RGL_Test f)"
+  | RGL_nml_DTest: "RGL_nml_fml f \<Longrightarrow> RGL_nml_game (RGL_DTest f)"
+  | RGL_nml_Choice: "RGL_nml_game g1 \<Longrightarrow> RGL_nml_game g2 \<Longrightarrow> RGL_nml_game (RGL_Choice g1 g2)"
+  | RGL_nml_DChoice: "RGL_nml_game g1 \<Longrightarrow> RGL_nml_game g2 \<Longrightarrow> RGL_nml_game (RGL_DChoice g1 g2)"
+  | RGL_nml_Seq: "RGL_nml_game g1 \<Longrightarrow> RGL_nml_game g2 \<Longrightarrow> RGL_nml_game (RGL_Seq g1 g2)"
+  | RGL_nml_Rec: "RGL_nml_game g \<Longrightarrow> RGL_nml_game (RGL_Rec x g)"
+  | RGL_nml_DRec: "RGL_nml_game g \<Longrightarrow> RGL_nml_game (RGL_DRec x g)"
+  | RGL_nml_Atm_fml: "RGL_nml_fml (RGL_Atm_fml f)"
+  | RGL_nml_Not_atm: "RGL_nml_fml (RGL_Not (RGL_Atm_fml f))"
+  | RGL_nml_Or: "RGL_nml_fml f1 \<Longrightarrow> RGL_nml_fml f2 \<Longrightarrow> RGL_nml_fml (RGL_Or f1 f2)"
+  | RGL_nml_And: "RGL_nml_fml f1 \<Longrightarrow> RGL_nml_fml f2 \<Longrightarrow> RGL_nml_fml (RGL_And f1 f2)"
+  | RGL_nml_Mod: "RGL_nml_game g \<Longrightarrow> RGL_nml_fml f \<Longrightarrow> RGL_nml_fml (RGL_Mod g f)"
+  
 fun RGL_sy_dual :: "'c RGL_game \<Rightarrow> 'c RGL_game" 
   and RGL_sy_comp :: "'c RGL_fml \<Rightarrow> 'c RGL_fml" where
     "RGL_sy_dual (RGL_Atm_Game (Agl_gm a)) = RGL_Atm_Game (Dmn_gm a)"
@@ -202,7 +234,7 @@ primrec RGL_even_dual :: "bool \<Rightarrow> 'c \<Rightarrow> 'c RGL_game \<Righ
   When g is not rx.h, the predicate always returns True.
 \<close>
 definition RGL_Rec_valid :: "'c RGL_game \<Rightarrow> bool" where
-  "RGL_Rec_valid g \<equiv> \<forall>x. (\<exists>h. g = RGL_Rec x h \<longrightarrow> RGL_even_dual True x h)"
+  "RGL_Rec_valid g \<equiv> \<forall>x. \<forall>h. (g = RGL_Rec x h \<longrightarrow> RGL_even_dual True x h)"
 
 definition RGL_Test_valid :: "'c RGL_game \<Rightarrow> bool" where
   "RGL_Test_valid g \<equiv> \<forall>f. (g = RGL_Test f \<longrightarrow> RGL_fml_closed f)"

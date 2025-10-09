@@ -31,11 +31,18 @@ definition is_nbd_struct :: "'a Nbd_Struct \<Rightarrow> bool" where
   \<and> (\<forall>g. ( (GameInterp S g) \<in> carrier_of (World S) \<inter> mono_of (World S) ))
   \<and> (\<forall>p. (PropInterp S p) \<subseteq> (World S)) "
 
+lemma is_nbd_struct_compat [simp]: "is_nbd_struct N \<Longrightarrow> a = Agl_gm x1 \<Longrightarrow> GameInterp N x1 \<in> Pow (World N) \<rightarrow> Pow (World N)"
+  apply (auto simp add:is_nbd_struct_def carrier_of_def)
+  done
+  
 \<comment>\<open>valuation\<close>
 type_synonym 'a val = "var_type \<Rightarrow> 'a eff_fn_type"
 
 definition is_val :: "'a Nbd_Struct \<Rightarrow> 'a val \<Rightarrow> bool" where
   "is_val N I \<equiv> \<forall>i. I i \<in> effective_fn_of (World N)"
+
+lemma val_modify_compat: "x=y \<Longrightarrow> (I(x:=a)) y = a &&& x\<noteq>y \<Longrightarrow> (I(x:=a)) y = I y"
+  by linarith
 
 \<comment>\<open>context\<close>
 definition Sab :: "int set" where
@@ -67,7 +74,7 @@ definition dual_cx :: "cx \<Rightarrow> cx" where
 definition subst_cx :: "cx \<Rightarrow> Atm_game \<Rightarrow> int \<Rightarrow> cx" where
   "subst_cx f a i b = (if a=b then i else f b)"
 
-lemma subst_cx_compat :
+lemma subst_cx_compat [simp]:
   assumes "c\<in> ALL_CX"
   shows "subst_cx c a 1 \<in> ALL_CX \<and> subst_cx c a (-1)\<in> ALL_CX"
   apply (auto simp add:Sab_def ALL_CX_def subst_cx_def)
@@ -76,18 +83,18 @@ proof -
   show "\<And>x. x \<in> \<int> \<Longrightarrow> c x \<noteq> - 1 \<Longrightarrow> c x \<noteq> 0 \<Longrightarrow> a \<noteq> x \<Longrightarrow> c x = 1" using assms by (auto simp add:ALL_CX_def Sab_def)
 qed
 
-lemma cx_double_neg : 
+lemma cx_double_neg: 
   assumes "c \<in> ALL_CX" shows "subst_cx c x (-1) = - subst_cx (- c) x 1" by (auto simp add:subst_cx_def)
 
 lemma cx_neg_sub:
   assumes "c\<in> ALL_CX" shows "- (subst_cx c x t) = subst_cx (-c) x (-t)" by (auto simp add:subst_cx_def)
 
-lemma cx_double_dual : 
+lemma cx_double_dual: 
   assumes "c\<in> ALL_CX" shows "dual_cx (dual_cx c) = c" using assms by (auto simp add:dual_cx_def)
 
-lemma sab_negate_compat : "a\<in>Sab \<Longrightarrow> -a\<in>Sab" by (auto simp add:Sab_def)
+lemma sab_negate_compat [simp]: "a\<in>Sab \<Longrightarrow> -a\<in>Sab" by (auto simp add:Sab_def)
 
-lemma cx_negate_compat : 
+lemma cx_negate_compat [simp]: 
   assumes "b\<in>ALL_CX"
   shows"-b\<in> ALL_CX"
   using assms by (auto simp add:ALL_CX_def Sab_def)
@@ -95,12 +102,12 @@ lemma cx_negate_compat :
 definition comp :: "'a set \<Rightarrow> 'a set \<Rightarrow> 'a set" where
   "comp N A = (if A\<subseteq> N then N-A else {})"
 
-lemma comp_compat : assumes "A \<subseteq> N" shows "comp N A\<subseteq> N" by (auto simp add:comp_def)
+lemma comp_compat [simp] : assumes "A \<subseteq> N" shows "comp N A\<subseteq> N" by (auto simp add:comp_def)
 
-lemma comp_subset_is_diff: assumes "A\<subseteq>N" shows "comp N A = N - A"
+lemma comp_subset_is_diff [simp]: assumes "A\<subseteq>N" shows "comp N A = N - A"
   using assms by (auto simp add:comp_def)
 
-lemma comp_flip:
+lemma comp_flip [simp]:
   assumes "a\<subseteq>b" and "a\<subseteq>N" and "b\<subseteq>N"
   shows "comp N b \<subseteq>comp N a"
   using assms comp_subset_is_diff
@@ -109,7 +116,7 @@ lemma comp_flip:
 definition dual_eff_fn :: "'a Nbd_Struct  \<Rightarrow> 'a eff_fn_type \<Rightarrow> 'a eff_fn_type" where
   "dual_eff_fn N f A = comp (World N) (f (comp (World N) A ))"
 
-lemma dual_eff_fn_compat:
+lemma dual_eff_fn_compat[simp]:
   fixes N :: "'a Nbd_Struct"
   and f:: "'a eff_fn_type"
   assumes "is_nbd_struct N" "f\<in>Pow (World N) \<rightarrow> Pow (World N)"
@@ -119,31 +126,13 @@ lemma dual_eff_fn_compat:
   apply (metis Diff_subset Semantics.comp_def equals0D in_mono)
   done
 
-lemma mono_dual_mono:
+lemma mono_dual_mono[simp]:
   fixes N :: "'a Nbd_Struct"
   and f:: "'a eff_fn_type"
 assumes "f\<in> mono_of (World N)" and "f\<in> Pow (World N)\<rightarrow> Pow (World N)"
 shows "dual_eff_fn N f \<in> mono_of (World N)"
-  apply (simp add:dual_eff_fn_def mono_of_def)
-  apply rule
-  apply rule
-  apply rule
-proof -
-  fix x y assume P1:" x \<subseteq> World N \<and> y \<subseteq> World N \<and> x \<subseteq> y"
-  show "Semantics.comp (World N) (f (Semantics.comp (World N) x)) \<subseteq> Semantics.comp (World N) (f (Semantics.comp (World N) y))"
-  proof -
-    from P1 have P2:"Semantics.comp (World N) x\<subseteq> World N" using comp_compat by auto
-    from P1 have P3:"Semantics.comp (World N) y\<subseteq> World N" using comp_compat by auto
-    from comp_flip P1 have "comp (World N) y \<subseteq> comp (World N) x" by auto
-    then have Q: "f (comp (World N) y) \<subseteq> f (comp (World N) x)" using assms P2 P3 by (auto simp add:mono_of_def)
-
-    have P4:"f (comp (World N) x)\<subseteq> World N" using P2 assms by (auto simp add:mono_of_def)
-    have P5:"f (comp (World N) y)\<subseteq> World N" using P3 assms by (auto simp add:mono_of_def)
-
-    from P4 P5 Q show ?thesis using comp_flip[of "f (Semantics.comp (World N) y)" "f (Semantics.comp (World N) x)" "World N"] 
-      by auto
-  qed
-qed
+  using assms apply (auto simp add:dual_eff_fn_def mono_of_def comp_def)
+  by (meson Diff_mono Diff_subset in_mono subset_iff_psubset_eq)
 
 section \<open>The GLs extension of base \<close>
 
@@ -160,7 +149,7 @@ definition lift_game_interp :: "ground_type Nbd_Struct \<Rightarrow> (Atm_game \
     then {(w,c)\<in> World N \<times> ALL_CX. (c a = 0) \<and> (w \<in> (GameInterp N) a (fst ` U)) \<or> (c a = 1) \<and> ((w,c)\<in> U)}
     else {})"
 
-lemma lift_game_interp_comat :
+lemma lift_game_interp_comat:
   fixes N :: "ground_type Nbd_Struct"
   and a :: "Atm_game"
 assumes
@@ -206,40 +195,24 @@ proof -
     proof - 
       from Emp have LHS:"\<Union> {sabo_comp (GLs_lift_nbd N) A |A. A \<in> \<Omega>} = {}" by auto
       from Emp have RHS:"sabo_comp (GLs_lift_nbd N) (ambient_inter (World N\<times>ALL_CX) \<Omega>) = {}" 
-        by (auto simp add: GLs_lift_nbd_def cx_negate_compat dual_cx_def ambient_inter_def sabo_comp_def)
+        by (auto simp add: GLs_lift_nbd_def dual_cx_def ambient_inter_def sabo_comp_def)
       from LHS RHS show ?thesis by (simp add:GLs_lift_nbd_def)
     qed
   next
     case NEmp
     then show ?thesis
-      apply (auto simp add: cx_negate_compat sabo_comp_def GLs_lift_nbd_def ambient_inter_def dual_cx_def)
+      apply (auto simp add: sabo_comp_def GLs_lift_nbd_def ambient_inter_def dual_cx_def)
       by (smt (verit, del_insts) Pow_def assms case_prodI mem_Collect_eq subset_iff)
   qed
 qed
 
 \<comment>\<open> Complement takes negative \<close>
-lemma sabo_dbl_comp : 
+lemma sabo_dbl_comp [simp] : 
   assumes "A \<subseteq> World N \<times> ALL_CX"
   shows "sabo_comp (GLs_lift_nbd N) (sabo_comp (GLs_lift_nbd N) A) = A"
   apply (auto simp add:sabo_comp_def dual_cx_def GLs_lift_nbd_def)
-proof -
-  show "\<And>a b. a \<in> World N \<Longrightarrow> b \<in> ALL_CX \<Longrightarrow> - b \<notin> ALL_CX \<Longrightarrow> (a, b) \<in> A" by (simp add: cx_negate_compat)
-  show "\<And>a b. a \<in> World N \<Longrightarrow> b \<in> ALL_CX \<Longrightarrow> (a, - (- b)) \<in> A \<Longrightarrow> (a, b) \<in> A"
-    using uminus_apply by fastforce
-  show "\<And>a b. (a, b) \<in> A \<Longrightarrow> a \<in> World N" using assms by auto
-  show "\<And>a b. (a, b) \<in> A \<Longrightarrow> b \<in> ALL_CX" using assms by auto
-  show "\<And>a b. (a, b) \<in> A \<Longrightarrow> - b \<in> ALL_CX \<Longrightarrow> a \<in> World N \<Longrightarrow> (a, - (- b)) \<in> A"
-    by (simp add: fun_Compl_def)
-  show "\<And>a b aa ba. (a, b) \<in> A \<Longrightarrow> (aa, ba) \<in> A \<Longrightarrow> a \<notin> World N \<Longrightarrow> aa \<in> World N"
-    using \<open>\<And>b a. (a, b) \<in> A \<Longrightarrow> a \<in> World N\<close> by blast
-  show "\<And>a b aa ba. (a, b) \<in> A \<Longrightarrow> (aa, ba) \<in> A \<Longrightarrow> a \<notin> World N \<Longrightarrow> ba \<in> ALL_CX"
-    using \<open>\<And>b a. (a, b) \<in> A \<Longrightarrow> a \<in> World N\<close> by blast
-  show "\<And>a b aa ba. (a, b) \<in> A \<Longrightarrow> (aa, ba) \<in> A \<Longrightarrow> b \<notin> ALL_CX \<Longrightarrow> aa \<in> World N"
-    using \<open>\<And>b a. (a, b) \<in> A \<Longrightarrow> a \<in> World N\<close> by auto
-  show "\<And>a b aa ba. (a, b) \<in> A \<Longrightarrow> (aa, ba) \<in> A \<Longrightarrow> b \<notin> ALL_CX \<Longrightarrow> ba \<in> ALL_CX "
-  using \<open>\<And>b a. (a, b) \<in> A \<Longrightarrow> b \<in> ALL_CX\<close> by blast
-qed
-
+  using assms uminus_apply cx_double_dual dual_cx_def by auto
+  
 lemma set_sabo_comp : "{A. A\<subseteq> (World N \<times> ALL_CX) \<and> P A} 
   = {sabo_comp (GLs_lift_nbd N) A| A. sabo_comp (GLs_lift_nbd N) A \<subseteq> (World N \<times>ALL_CX) \<and> P (sabo_comp (GLs_lift_nbd N) A)}"
   apply auto
@@ -366,11 +339,11 @@ lemma GLs_eff_fn_double_dual :
   assumes "A \<subseteq> World N \<times> ALL_CX"
         "f \<in> Pow (World N \<times> ALL_CX) \<rightarrow> Pow (World N \<times> ALL_CX)"
   shows "GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_dual_eff_fn (GLs_lift_nbd N) f) A = f A"
-  apply (simp add:GLs_dual_eff_fn_def sabo_dbl_comp assms)
+  apply (simp add:GLs_dual_eff_fn_def  assms)
 proof -
   have "f A\<in> Pow (World N\<times> ALL_CX)" using assms by auto
   then show "sabo_comp (GLs_lift_nbd N) (sabo_comp (GLs_lift_nbd N) (f A)) = f A"
-    by (simp add:sabo_dbl_comp assms GLs_dual_eff_fn_def)
+    by (simp add: assms GLs_dual_eff_fn_def)
 qed
 
 
@@ -609,7 +582,8 @@ proof (induction f and g)
         using assms by (auto simp add:is_nbd_struct_def carrier_of_def GLs_lift_nbd_def lift_game_interp_def)
 
       then show "GameInterp (GLs_lift_nbd N) x2 A =
-         sabo_comp (GLs_lift_nbd N) (sabo_comp (GLs_lift_nbd N) (GameInterp (GLs_lift_nbd N) x2 (sabo_comp (GLs_lift_nbd N) (sabo_comp (GLs_lift_nbd N) A))))"
+          sabo_comp (GLs_lift_nbd N)
+          (sabo_comp (GLs_lift_nbd N) (GameInterp (GLs_lift_nbd N) x2 A))"
         using a1 a2 sabo_dbl_comp by auto
     qed
   qed
@@ -739,7 +713,9 @@ fun RGL_fml_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<
 definition RGL_fixpt_op :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type \<Rightarrow> RGL_var_type RGL_game \<Rightarrow> RGL_eff_fn_type \<Rightarrow> RGL_eff_fn_type" where
   "RGL_fixpt_op N I x g u = RGL_game_sem N (I(x:=u)) g"
 
-\<comment>\<open>lemma 3.5 of paper: If rx.\<alpha> is valid, then u\<rightarrow>N[\<alpha>]^I(x:=u) is monotone\<close>
+\<comment>\<open>lemma 3.5 of paper: If rx.\<alpha> is valid, then u\<rightarrow>N[\<alpha>]^I(x:=u) is monotone.
+  uses induction on normal form.
+\<close>
 lemma RGL_fixpt_op_mono:
   fixes f:: "RGL_var_type RGL_fml"
     and g:: "RGL_var_type RGL_game"
@@ -747,9 +723,83 @@ lemma RGL_fixpt_op_mono:
     and I:: "RGL_var_type val"
     and x:: "RGL_var_type"
     and h:: "RGL_var_type RGL_game"
-  assumes "RGL_Rec_valid g" and "g = RGL_Rec x h"
+  assumes "RGL_Rec_valid g" and "g = RGL_Rec x h" and "RGL_nml_game h" and "is_nbd_struct N" and "is_val N I"
   shows "RGL_fixpt_op N I x h \<in> monotone_op_of (World N)"
+  using assms
+proof (induction h arbitrary:x g rule: RGL_game_induct)
+  case (RGL_Atm_Game a)
+  then show ?case 
+  proof (cases a)
+    case (Agl_gm x1)
+    then show ?thesis
+      using assms
+      by (simp add:RGL_fixpt_op_def is_nbd_struct_def monotone_op_of_def fun_le_def effective_fn_of_def)
+  next
+    case (Dmn_gm x2)
+    then show ?thesis 
+      using assms
+      by (simp add:RGL_fixpt_op_def is_nbd_struct_def monotone_op_of_def fun_le_def effective_fn_of_def)
+  qed
+next
+  case (RGL_Var y)
+  then show ?case
+    using assms(5) by (auto simp add:RGL_fixpt_op_def is_val_def monotone_op_of_def fun_le_def)
+next
+  case (RGL_Dual g')
+  then show ?case
+  proof -
+    assume "RGL_nml_game (RGL_Dual g')" then show ?case
+    proof cases
+      case (RGL_nml_DVar y)
+      consider (Eq) "x=y" | (Neq) "x\<noteq>y" by auto
+      then show ?thesis
+      proof cases
+        case Eq
+          from RGL_Dual.prems(1) RGL_Dual.prems(2) have "RGL_even_dual True x (RGL_Dual g')" by (simp add:RGL_Rec_valid_def)
+          from this local.RGL_nml_DVar Eq have False by auto 
+          then show ?thesis by simp
+      next
+        case Neq
+        then have a1:"\<And>a. (I(x:=a)) y = I y" using val_modify_compat by simp
+        show ?thesis
+          apply (simp add:RGL_fixpt_op_def local.RGL_nml_DVar)
+        proof -
+          from Neq have a:"(\<lambda>a. dual_eff_fn N (RGL_game_sem N (I(x := a)) (RGL_Var y)) ) = (\<lambda>a. dual_eff_fn N (I y))"
+            using RGL_game_sem.simps(3) a1 by presburger
 
+          have "(\<lambda>a. dual_eff_fn N (I y)) \<in> monotone_op_of (World N)"
+            apply (auto simp add:monotone_op_of_def fun_le_def effective_fn_of_def)
+             apply (metis (no_types, lifting) Semantics.comp_compat Semantics.comp_def dual_eff_fn_def empty_iff subsetD)
+            by (metis Int_iff RGL_Dual.prems(5) effective_fn_of_def is_val_def mono_dual_mono)
+
+          then show "(\<lambda>a. dual_eff_fn N (RGL_game_sem N (I(x := a)) (RGL_Var y))) \<in> monotone_op_of (World N)"
+            using a by simp
+        qed
+      qed
+    next
+      case (RGL_nml_DTest f)
+      then show ?thesis sorry
+    next
+      case (RGL_nml_DChoice g1 g2)
+      then show ?thesis sorry
+    next
+      case (RGL_nml_DRec x g)
+      then show ?thesis sorry
+    qed
+  qed
+next
+  case (RGL_Test f)
+  then show ?case sorry
+next
+  case (RGL_Choice g1 g2)
+  then show ?case sorry
+next
+  case (RGL_Seq g1 g2)
+  then show ?case sorry
+next
+  case (RGL_Rec x g)
+  then show ?case sorry
+qed
 
 lemma RGL_dualize_free_comm : 
     fixes f::"RGL_var_type RGL_ext_fml"
