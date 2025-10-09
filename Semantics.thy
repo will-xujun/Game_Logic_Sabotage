@@ -797,25 +797,37 @@ next
   qed
 next
   case (RGL_Rec x g)
+  then show ?case sorry
+next
+  case (RGL_Atm_fml P)
+  then show ?case by auto 
+next
+  case (RGL_Not f)
   then show ?case
   proof -
-    from RGL_Rec.prems(2) have "free_var_game g = {x} \<or> RGL_game_closed g" by simp
-    assume "free_var_game g = {x}"
+    from RGL_Not.prems(1) have "RGL_fml_closed f" by (auto simp add:RGL_fml_closed_def)
+    then show "RGL_fml_sem N I (RGL_Not f) = RGL_fml_sem N J (RGL_Not f)"
+      using RGL_Not.IH assms(2) by auto
   qed
 next
-  case (RGL_Atm_fml x)
-  then show ?case sorry
+  case (RGL_Or f1 f2)
+  then show ?case
+  proof -
+    from RGL_Or.prems(1) have a1:"RGL_fml_closed f1" by (auto simp add:RGL_fml_closed_def)
+    from RGL_Or.prems(1) have "RGL_fml_closed f2" by (auto simp add:RGL_fml_closed_def)
+    then show "RGL_fml_sem N I (RGL_Or f1 f2) = RGL_fml_sem N J (RGL_Or f1 f2)"
+      using RGL_Or.IH assms(2) a1 by auto
+  qed
 next
-  case (RGL_Not x)
-  then show ?case sorry
-next
-  case (RGL_Or x1 x2)
-  then show ?case sorry
-next
-  case (RGL_Mod x1 x2)
-  then show ?case sorry
+  case (RGL_Mod g f)
+  then show ?case 
+  proof -
+    from RGL_Mod.prems(1) have a1:"RGL_fml_closed f" by (auto simp add:RGL_fml_closed_def)
+    from RGL_Mod.prems(1) have "RGL_game_closed g" by (auto simp add:RGL_fml_closed_def RGL_game_closed_def)
+    then show "RGL_fml_sem N I (RGL_Mod g f) = RGL_fml_sem N J (RGL_Mod g f)"
+      using RGL_Mod.IH assms a1 by auto
+  qed
 qed
-
 
 definition RGL_fixpt_op:: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type \<Rightarrow> RGL_var_type RGL_game \<Rightarrow> RGL_eff_fn_type \<Rightarrow> RGL_eff_fn_type" where
   "RGL_fixpt_op N I x g u = RGL_game_sem N (I(x:=u)) g"
