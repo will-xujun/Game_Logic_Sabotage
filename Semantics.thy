@@ -749,84 +749,112 @@ next
   then show ?case by (auto simp add:RGL_game_closed_def)
 qed
 
+lemma RGL_Rec_sem_uniform: "RGL_game_sem N (I(x:=u)) (RGL_Rec x g) = RGL_game_sem N (I(x:=v)) (RGL_Rec x g)"
+  by auto
 
-lemma RGL_test_interp_uniform: assumes "RGL_fml_closed f" and "RGL_game_closed g"
-  shows "RGL_fml_sem N I f = RGL_fml_sem N J f"
-        "RGL_game_sem N I g = RGL_game_sem N J g"
-  using assms
-proof (induction f and g)
+lemma RGL_Rec_sem_local [simp]:
+  "\<forall>x \<in> free_var_game g. I x = J x \<Longrightarrow> RGL_game_sem N I g = RGL_game_sem N J g"
+  "\<And>K L. (\<forall>x \<in> free_var f. K x = L x \<Longrightarrow> RGL_fml_sem N K f = RGL_fml_sem N L f)"
+proof (induction g and f arbitrary: I J)
   case (RGL_Atm_Game x)
-  then show ?case by simp
+  then show ?case by auto
 next
-  case (RGL_Var x)
+  case (RGL_Var y)
+  then show ?case 
+  proof - have "free_var_game (RGL_Var y) = {y}" by auto
+    then show ?thesis using RGL_Var.prems by auto
+  qed
+next
+  case (RGL_Dual g')
   then show ?case
-    using RGL_game_closed_def by force
-next
-  case (RGL_Dual g)
-  then show ?case apply auto
-  proof -
-    from RGL_Dual.prems(2) have "RGL_game_closed g" by (auto simp add:RGL_game_closed_def)
-    then show "dual_eff_fn N (RGL_game_sem N I g) = dual_eff_fn N (RGL_game_sem N J g)"
-      using RGL_Dual.IH assms(1) by presburger
+  proof - have "free_var_game g' = free_var_game (RGL_Dual g')" by auto
+    then have "\<forall>x \<in> free_var_game g'. I x = J x" using RGL_Dual.prems by auto
+    then show ?thesis using RGL_Dual.IH
+    using RGL_game_sem.simps(4) by presburger
   qed
 next
   case (RGL_Test f')
   then show ?case 
-  proof -
-    from RGL_Test.prems(2) have "RGL_fml_closed f'" by (auto simp add:RGL_game_closed_def RGL_fml_closed_def)
-    then show "RGL_game_sem N I (RGL_Test f') = RGL_game_sem N J (RGL_Test f')"
-      using RGL_Test.IH assms by force
+  proof - have "free_var f' = free_var_game (RGL_Test f')" by auto
+    then show ?thesis using RGL_Test.IH[of "I" "J"] RGL_Test.prems by auto
   qed
 next
   case (RGL_Choice g1 g2)
   then show ?case
   proof -
-    from RGL_Choice.prems(2) have a:"RGL_game_closed g1" by (auto simp add:RGL_game_closed_def)
-    from RGL_Choice.prems(2) have "RGL_game_closed g2" by (auto simp add:RGL_game_closed_def)
-    then show "RGL_game_sem N I (RGL_Choice g1 g2) = RGL_game_sem N J (RGL_Choice g1 g2)"
-      using RGL_Choice.IH a assms(1) by auto
+    have a1:"free_var_game g1\<subseteq> free_var_game (RGL_Choice g1 g2)" by auto
+    have a2:"free_var_game g2\<subseteq> free_var_game (RGL_Choice g1 g2)" by auto
+
+    from a1 have b1:"\<forall>x\<in>free_var_game g1. I x = J x" using RGL_Choice.prems by auto
+    from a2 have b2:"\<forall>x\<in>free_var_game g2. I x = J x" using RGL_Choice.prems by auto
+
+    from b1 b2 RGL_Choice.IH show ?thesis by force
   qed
 next
   case (RGL_Seq g1 g2)
   then show ?case
   proof -
-    from RGL_Seq.prems(2) have a:"RGL_game_closed g1" by (auto simp add:RGL_game_closed_def)
-    from RGL_Seq.prems(2) have "RGL_game_closed g2" by (auto simp add:RGL_game_closed_def)
-    then show "RGL_game_sem N I (RGL_Seq g1 g2) = RGL_game_sem N J (RGL_Seq g1 g2)"
-      using RGL_Seq.IH a assms by auto
+    have a1:"free_var_game g1\<subseteq> free_var_game (RGL_Choice g1 g2)" by auto
+    have a2:"free_var_game g2\<subseteq> free_var_game (RGL_Choice g1 g2)" by auto
+
+    from a1 have b1:"\<forall>x\<in>free_var_game g1. I x = J x" using RGL_Seq.prems by auto
+    from a2 have b2:"\<forall>x\<in>free_var_game g2. I x = J x" using RGL_Seq.prems by auto
+
+    from b1 b2 RGL_Seq.IH show ?thesis by force    
   qed
 next
-  case (RGL_Rec x g)
-  then show ?case sorry
-next
-  case (RGL_Atm_fml P)
-  then show ?case by auto 
-next
-  case (RGL_Not f)
-  then show ?case
+  case (RGL_Rec x g')
+  then show ?case 
   proof -
-    from RGL_Not.prems(1) have "RGL_fml_closed f" by (auto simp add:RGL_fml_closed_def)
-    then show "RGL_fml_sem N I (RGL_Not f) = RGL_fml_sem N J (RGL_Not f)"
-      using RGL_Not.IH assms(2) by auto
+    have a:"free_var_game g' - {x} = free_var_game (RGL_Rec x g')" by auto
+    then have "\<And> u y. y\<in>free_var_game g' \<Longrightarrow> (I(x:=u)) y = (J(x:=u)) y" using RGL_Rec.prems by auto
+    then have "\<And> u. RGL_game_sem N (I(x:=u)) g' = RGL_game_sem N (J(x:=u)) g'" using RGL_Rec.IH by auto
+    then show ?thesis by auto
   qed
+next
+  case (RGL_Atm_fml x)
+  then show ?case by auto
+next
+  case (RGL_Not x)
+  then show ?case by auto
 next
   case (RGL_Or f1 f2)
-  then show ?case
+  then show ?case 
   proof -
-    from RGL_Or.prems(1) have a1:"RGL_fml_closed f1" by (auto simp add:RGL_fml_closed_def)
-    from RGL_Or.prems(1) have "RGL_fml_closed f2" by (auto simp add:RGL_fml_closed_def)
-    then show "RGL_fml_sem N I (RGL_Or f1 f2) = RGL_fml_sem N J (RGL_Or f1 f2)"
-      using RGL_Or.IH assms(2) a1 by auto
+    have a1:"free_var f1\<subseteq> free_var (RGL_Or f1 f2)" by auto
+    have a2:"free_var f2\<subseteq> free_var (RGL_Or f1 f2)" by auto
+
+    from a1 have b1:" \<forall>x\<in>free_var f1. K x = L x" using RGL_Or.prems by auto
+    from a2 have b2:" \<forall>x\<in>free_var f2. K x = L x" using RGL_Or.prems by auto
+
+    from RGL_Or.IH b1 b2 show ?thesis by force
   qed
 next
   case (RGL_Mod g f)
-  then show ?case 
-  proof -
-    from RGL_Mod.prems(1) have a1:"RGL_fml_closed f" by (auto simp add:RGL_fml_closed_def)
-    from RGL_Mod.prems(1) have "RGL_game_closed g" by (auto simp add:RGL_fml_closed_def RGL_game_closed_def)
-    then show "RGL_fml_sem N I (RGL_Mod g f) = RGL_fml_sem N J (RGL_Mod g f)"
-      using RGL_Mod.IH assms a1 by auto
+  then show ?case
+  proof - 
+    have a1:"free_var_game g \<subseteq> free_var (RGL_Mod g f)" by auto
+    have a2:"free_var f \<subseteq> free_var (RGL_Mod g f)" by auto
+
+    from RGL_Mod.prems a1 have b1:"\<forall>x\<in>free_var_game g. K x = L x" by auto
+    from RGL_Mod.prems a2 have b2:"\<forall>x\<in>free_var f. K x = L x" by auto
+
+    from b1 b2 RGL_Mod.IH show ?thesis by force
   qed
+qed
+
+lemma RGL_test_interp_uniform: assumes "RGL_fml_closed f" and "RGL_game_closed g"
+  shows "RGL_fml_sem N K f = RGL_fml_sem N L f"
+        "RGL_game_sem N I g = RGL_game_sem N J g"
+  using assms
+proof -
+  have "free_var f = {}" using assms by (simp add:RGL_fml_closed_def)
+  then have "\<forall>x \<in> free_var f. K x = L x" by simp
+  then show R2:"RGL_fml_sem N K f = RGL_fml_sem N L f" by simp
+
+  have "free_var_game g = {}" using assms by (simp add:RGL_game_closed_def)
+  then have "\<forall>x \<in> free_var_game g. I x = J x" by simp
+  then show "RGL_game_sem N I g = RGL_game_sem N J g" by simp
 qed
 
 definition RGL_fixpt_op:: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type \<Rightarrow> RGL_var_type RGL_game \<Rightarrow> RGL_eff_fn_type \<Rightarrow> RGL_eff_fn_type" where
@@ -845,7 +873,7 @@ next
   then show ?case using assms RGL_var_interp_mono fun_le_def by auto
 next
   case (RGL_Dual g)
-  then show ?case 
+  then show ?case sorry
 next
   case (RGL_Test x)
   then show ?case sorry
