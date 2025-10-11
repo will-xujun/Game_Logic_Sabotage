@@ -33,7 +33,7 @@ definition monotone_op_of ::"'a set \<Rightarrow> ( ('a set \<Rightarrow> 'a set
   \<inter> {F. \<forall>g1\<in>effective_fn_of A. \<forall>g2\<in> effective_fn_of A. fun_le g1 g2 \<longrightarrow> fun_le (F g1) (F g2)}"
 
 definition Lfp_family :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set)) \<Rightarrow> ('a set \<Rightarrow> 'a set) set" where
-  "Lfp_family A f = {\<phi>. \<phi>\<in> carrier_of A \<and> fun_le (f \<phi>) \<phi>}"
+  "Lfp_family A f = {\<phi>. \<phi>\<in> effective_fn_of A \<and> fun_le (f \<phi>) \<phi>}"
 
 definition Lfp :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set)) \<Rightarrow> ('a set \<Rightarrow> 'a set)" where
   "Lfp w f a = ambient_inter w {\<phi> a | \<phi>. \<phi> \<in> Lfp_family w f}"
@@ -57,7 +57,8 @@ proof -
   then show ?thesis by auto
 qed
 
-lemma max_of_mono : "max_of A \<in> mono_of A"
+lemma max_of_mono : "max_of A \<in> mono_of A" 
+  by (auto simp add:mono_of_def max_of_def)
 
 lemma carrier_op_funcset : "f\<in> monotone_op_of A \<Longrightarrow> \<phi>\<in> effective_fn_of A \<Longrightarrow> f \<phi> \<in> (Pow A\<rightarrow> Pow A) "
   by (simp add: Pi_iff effective_fn_of_def monotone_op_of_def)
@@ -77,10 +78,10 @@ lemma max_of_properties :
       proof -
         have Q1:"xa \<subseteq> A \<longrightarrow> f (max_of A) xa \<subseteq> A"
         proof -
-          have P2: "max_of A \<in> Pow A \<rightarrow> Pow A" by (rule max_of_in_funcset[where A="A"])
+          have P2: "max_of A \<in> effective_fn_of A" using max_of_in_funcset[of "A"] max_of_mono by (auto simp add:effective_fn_of_def)
           then have "f (max_of A) \<in> Pow A \<rightarrow> Pow A"
           proof -
-            have "f\<in> monotone_op_of A \<Longrightarrow> max_of A \<in> Pow A \<rightarrow> Pow A \<Longrightarrow> f (max_of A) \<in> Pow A\<rightarrow> Pow A"
+            have "f\<in> monotone_op_of A \<Longrightarrow> max_of A \<in> effective_fn_of A \<Longrightarrow> f (max_of A) \<in> Pow A\<rightarrow> Pow A"
               by (rule carrier_op_funcset[of "f" "A" "max_of A"]) (auto)
             then show "f (max_of A) \<in> Pow A\<rightarrow> Pow A" using assms P2 by auto
           qed
