@@ -57,22 +57,10 @@ proof -
   then show ?thesis by auto
 qed
 
-lemma carrier_op_funcset : "f\<in> monotone_op_of A \<Longrightarrow> \<phi>\<in> Pow A \<rightarrow> Pow A \<Longrightarrow> f \<phi> \<in> (Pow A\<rightarrow> Pow A) "
-proof -
-  assume P0: "f\<in> monotone_op_of A"
-  and P2: "\<phi>\<in> Pow A \<rightarrow> Pow A"
-  show "f \<phi> \<in> (Pow A \<rightarrow> Pow A)"
-  proof -
-    from P0 have P1: "f \<in> (Pow A \<rightarrow> Pow A) \<rightarrow> (Pow A \<rightarrow> Pow A)" by (auto simp add:monotone_op_of_def carrier_of_def)
-    then show ?thesis using P2 funcset_mem  by auto
-  qed
-qed
+lemma max_of_mono : "max_of A \<in> mono_of A"
 
-lemma carrier_op_ext : 
-  assumes "f\<in> monotone_op_of A"
-    and "\<phi>\<in> Pow A \<rightarrow> Pow A"
-  shows "f \<phi> \<in> (extension (Pow A))"
-  using assms by (auto simp add:monotone_op_of_def carrier_of_def)
+lemma carrier_op_funcset : "f\<in> monotone_op_of A \<Longrightarrow> \<phi>\<in> effective_fn_of A \<Longrightarrow> f \<phi> \<in> (Pow A\<rightarrow> Pow A) "
+  by (simp add: Pi_iff effective_fn_of_def monotone_op_of_def)
 
 lemma max_of_properties : 
   assumes "A \<noteq> {}"

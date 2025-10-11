@@ -709,6 +709,64 @@ fun RGL_fml_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<
 | "RGL_game_sem N I (RGL_Seq g1 g2) A = (RGL_game_sem N I g2) ((RGL_game_sem N I g1) A)"
 | "RGL_game_sem N I (RGL_Rec x g) A =  (Lfp (World N) (\<lambda>u. (RGL_game_sem N (I(x:=u)) g))) A"
 
+lemma RGL_sem_wd:
+  fixes N :: "RGL_ground_type Nbd_Struct"
+  and I :: "RGL_var_type val"
+assumes "is_nbd_struct N"
+    and "is_val N I"
+  shows
+    "(RGL_fml_sem N I f) \<subseteq> (World N)"
+    "\<And>A. A \<subseteq> (World N) \<Longrightarrow> (RGL_game_sem N I g) A \<subseteq> (World N)"
+proof (induction f and g arbitrary:A)
+  case (RGL_Atm_Game x)
+  then show ?case
+  proof (cases x)
+    case (Agl_gm x1)
+    then show ?thesis using assms apply (auto simp add:is_nbd_struct_def carrier_of_def)
+      using RGL_Atm_Game by blast
+  next
+    case (Dmn_gm x2)
+    then show ?thesis using assms apply (auto simp add:is_nbd_struct_def carrier_of_def)
+      by (smt (verit, ccfv_threshold) PiE Pow_bottom Pow_def Pow_iff RGL_Atm_Game Semantics.comp_compat dual_eff_fn_def in_mono)
+  qed
+next
+  case (RGL_Var x)
+  then show ?case using assms by (auto simp add: is_val_def effective_fn_of_def)
+next
+  case (RGL_Dual x)
+  then show ?case using assms dual_eff_fn_compat RGL_Dual.IH
+    by (simp add: Semantics.comp_def dual_eff_fn_def)
+next
+  case (RGL_Test x)
+  then show ?case by auto
+next
+  case (RGL_Choice x1 x2)
+  then show ?case by simp
+next
+  case (RGL_Seq g1 g2)
+  then show ?case
+  proof (simp)
+    from RGL_Seq.prems RGL_Seq.IH have "RGL_game_sem N I g1 A \<subseteq> World N" by auto
+    then have "RGL_game_sem N I g2 (RGL_game_sem N I g1 A) \<subseteq> World N" using RGL_Seq.IH by auto
+  qed
+next
+  case (RGL_Rec x g)
+  then show ?case 
+next
+  case (RGL_Atm_fml x)
+  then show ?case sorry
+next
+  case (RGL_Not x)
+  then show ?case sorry
+next
+  case (RGL_Or x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Mod x1 x2)
+  then show ?case sorry
+qed
+
+
 lemma RGL_atm_interp_uniform [simp]: "RGL_game_sem N I (RGL_Atm_Game x) = RGL_game_sem N J (RGL_Atm_Game x)"
   by (cases x) (auto)
 
@@ -752,7 +810,7 @@ qed
 lemma RGL_Rec_sem_uniform: "RGL_game_sem N (I(x:=u)) (RGL_Rec x g) = RGL_game_sem N (I(x:=v)) (RGL_Rec x g)"
   by auto
 
-lemma RGL_Rec_sem_local [simp]:
+lemma RGL_Rec_sem_local:
   "\<forall>x \<in> free_var_game g. I x = J x \<Longrightarrow> RGL_game_sem N I g = RGL_game_sem N J g"
   "\<And>K L. (\<forall>x \<in> free_var f. K x = L x \<Longrightarrow> RGL_fml_sem N K f = RGL_fml_sem N L f)"
 proof (induction g and f arbitrary: I J)
@@ -850,11 +908,11 @@ lemma RGL_test_interp_uniform: assumes "RGL_fml_closed f" and "RGL_game_closed g
 proof -
   have "free_var f = {}" using assms by (simp add:RGL_fml_closed_def)
   then have "\<forall>x \<in> free_var f. K x = L x" by simp
-  then show R2:"RGL_fml_sem N K f = RGL_fml_sem N L f" by simp
+  then show R2:"RGL_fml_sem N K f = RGL_fml_sem N L f" using RGL_Rec_sem_local by simp
 
   have "free_var_game g = {}" using assms by (simp add:RGL_game_closed_def)
   then have "\<forall>x \<in> free_var_game g. I x = J x" by simp
-  then show "RGL_game_sem N I g = RGL_game_sem N J g" by simp
+  then show "RGL_game_sem N I g = RGL_game_sem N J g" using RGL_Rec_sem_local by simp
 qed
 
 definition RGL_fixpt_op:: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type \<Rightarrow> RGL_var_type RGL_game \<Rightarrow> RGL_eff_fn_type \<Rightarrow> RGL_eff_fn_type" where
@@ -965,10 +1023,14 @@ next
       qed
     next
       case (RGL_nml_DTest f)
-      then show ?thesis unfolding RGL_DTest_def RGL_fixpt_op_def apply simp
+      then show ?thesis 
       proof -
-        
-        show "RGL_fixpt_op N I x (RGL_Dual (RGL_Test f)) \<in> monotone_op_of (World N)"
+        have a1:"g' = RGL_Test f" using local.RGL_nml_DTest(1) unfolding RGL_DTest_def by auto
+        have a2:"RGL_fml_closed f" using local.RGL_nml_DTest by simp
+        show ?thesis unfolding RGL_DTest_def RGL_fixpt_op_def monotone_op_of_def apply (simp add:a1)
+        proof 
+          from a2 have "RGL_game_sem N (I(x := g1)) (RGL_Test f) = RGL_game_sem N (I(x := g2)) (RGL_Test f)"
+        qed
       qed
     next
       case (RGL_nml_DChoice g1 g2)

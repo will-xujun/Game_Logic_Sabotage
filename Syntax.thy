@@ -134,24 +134,6 @@ definition RGL_DTest where "RGL_DTest f = RGL_Dual (RGL_Test f)"
 definition RGL_DChoice where "RGL_DChoice g1 g2 = RGL_Dual (RGL_Choice (RGL_Dual g1) (RGL_Dual g2))"
 
 definition RGL_DRec where "RGL_DRec x g = RGL_Dual (RGL_undual_free x (RGL_Rec x g))"
-
-inductive RGL_nml_game:: "'c RGL_game \<Rightarrow> bool"
-  and RGL_nml_fml :: "'c RGL_fml \<Rightarrow> bool" where
-    RGL_nml_Atm_game: "RGL_nml_game (RGL_Atm_Game a)"
-  | RGL_nml_Var: "RGL_nml_game (RGL_Var x)"
-  | RGL_nml_DVar: "RGL_nml_game (RGL_Dual (RGL_Var x))"
-  | RGL_nml_Test: "RGL_nml_fml f \<Longrightarrow> RGL_nml_game (RGL_Test f)"
-  | RGL_nml_DTest: "RGL_nml_fml f \<Longrightarrow> RGL_nml_game (RGL_DTest f)"
-  | RGL_nml_Choice: "RGL_nml_game g1 \<Longrightarrow> RGL_nml_game g2 \<Longrightarrow> RGL_nml_game (RGL_Choice g1 g2)"
-  | RGL_nml_DChoice: "RGL_nml_game g1 \<Longrightarrow> RGL_nml_game g2 \<Longrightarrow> RGL_nml_game (RGL_DChoice g1 g2)"
-  | RGL_nml_Seq: "RGL_nml_game g1 \<Longrightarrow> RGL_nml_game g2 \<Longrightarrow> RGL_nml_game (RGL_Seq g1 g2)"
-  | RGL_nml_Rec: "RGL_nml_game g \<Longrightarrow> RGL_nml_game (RGL_Rec x g)"
-  | RGL_nml_DRec: "RGL_nml_game g \<Longrightarrow> RGL_nml_game (RGL_DRec x g)"
-  | RGL_nml_Atm_fml: "RGL_nml_fml (RGL_Atm_fml f)"
-  | RGL_nml_Not_atm: "RGL_nml_fml (RGL_Not (RGL_Atm_fml f))"
-  | RGL_nml_Or: "RGL_nml_fml f1 \<Longrightarrow> RGL_nml_fml f2 \<Longrightarrow> RGL_nml_fml (RGL_Or f1 f2)"
-  | RGL_nml_And: "RGL_nml_fml f1 \<Longrightarrow> RGL_nml_fml f2 \<Longrightarrow> RGL_nml_fml (RGL_And f1 f2)"
-  | RGL_nml_Mod: "RGL_nml_game g \<Longrightarrow> RGL_nml_fml f \<Longrightarrow> RGL_nml_fml (RGL_Mod g f)"
   
 fun RGL_sy_dual :: "'c RGL_game \<Rightarrow> 'c RGL_game" 
   and RGL_sy_comp :: "'c RGL_fml \<Rightarrow> 'c RGL_fml" where
@@ -243,6 +225,25 @@ definition RGL_Test_valid :: "'c RGL_game \<Rightarrow> bool" where
 
 definition RGL_game_valid :: "'c RGL_game \<Rightarrow> bool" where
   "RGL_game_valid g \<equiv> (RGL_Rec_valid g \<and> RGL_Test_valid g)"
+
+inductive RGL_nml_game:: "'c RGL_game \<Rightarrow> bool"
+  and RGL_nml_fml :: "'c RGL_fml \<Rightarrow> bool" where
+    RGL_nml_Atm_game: "RGL_nml_game (RGL_Atm_Game a)"
+  | RGL_nml_Var: "RGL_nml_game (RGL_Var x)"
+  | RGL_nml_DVar: "RGL_nml_game (RGL_Dual (RGL_Var x))"
+  | RGL_nml_Test: "RGL_nml_fml f \<Longrightarrow> RGL_fml_closed f \<Longrightarrow> RGL_nml_game (RGL_Test f)"
+  | RGL_nml_DTest: "RGL_nml_fml f \<Longrightarrow> RGL_fml_closed f \<Longrightarrow> RGL_nml_game (RGL_DTest f)"
+  | RGL_nml_Choice: "RGL_nml_game g1 \<Longrightarrow> RGL_nml_game g2 \<Longrightarrow> RGL_nml_game (RGL_Choice g1 g2)"
+  | RGL_nml_DChoice: "RGL_nml_game g1 \<Longrightarrow> RGL_nml_game g2 \<Longrightarrow> RGL_nml_game (RGL_DChoice g1 g2)"
+  | RGL_nml_Seq: "RGL_nml_game g1 \<Longrightarrow> RGL_nml_game g2 \<Longrightarrow> RGL_nml_game (RGL_Seq g1 g2)"
+  | RGL_nml_Rec: "RGL_nml_game g \<Longrightarrow> RGL_nml_game (RGL_Rec x g)"
+  | RGL_nml_DRec: "RGL_nml_game g \<Longrightarrow> RGL_nml_game (RGL_DRec x g)"
+  | RGL_nml_Atm_fml: "RGL_nml_fml (RGL_Atm_fml f)"
+  | RGL_nml_Not_atm: "RGL_nml_fml (RGL_Not (RGL_Atm_fml f))"
+  | RGL_nml_Or: "RGL_nml_fml f1 \<Longrightarrow> RGL_nml_fml f2 \<Longrightarrow> RGL_nml_fml (RGL_Or f1 f2)"
+  | RGL_nml_And: "RGL_nml_fml f1 \<Longrightarrow> RGL_nml_fml f2 \<Longrightarrow> RGL_nml_fml (RGL_And f1 f2)"
+  | RGL_nml_Mod: "RGL_nml_game g \<Longrightarrow> RGL_nml_fml f \<Longrightarrow> RGL_nml_fml (RGL_Mod g f)"
+
 
 datatype Lmu_fml = 
   Lmu_Id
