@@ -817,18 +817,6 @@ next
   qed
 qed
 
-lemma RGL_DChoice_sem_fixpt_mono: assumes "is_nbd_struct N" and "is_val N I" and "f1\<in> effective_fn_of (World N)" and "f2\<in> effective_fn_of (World N)"
-  shows
-  "fun_le f1 f2 \<Longrightarrow> fun_le (RGL_game_sem N (I(x := f1)) (RGL_DChoice g1 g2)) (RGL_game_sem N (I(x := f2)) (RGL_DChoice g1 g2))"
-proof -
-  assume a0:"fun_le f1 f2"
-  from RGL_DChoice_sem assms val_modify_val have a1:"RGL_game_sem N (I(x := f1)) (RGL_DChoice g1 g2) = (\<lambda>A. RGL_game_sem N (I(x := f1)) g1 A \<inter> RGL_game_sem N (I(x := f1)) g2 A)" 
-    by blast
-  from RGL_DChoice_sem assms val_modify_val have a2:"RGL_game_sem N (I(x := f2)) (RGL_DChoice g1 g2) = (\<lambda>A. RGL_game_sem N (I(x := f2)) g1 A \<inter> RGL_game_sem N (I(x := f2)) g2 A)" 
-    by blast
-  from a0 a1 a2 show ?thesis apply (simp add:fun_le_def)
-
-
 
 lemma RGL_atm_interp_uniform [simp]: "RGL_game_sem N I (RGL_Atm_Game x) = RGL_game_sem N J (RGL_Atm_Game x)"
   by (cases x) (auto)
@@ -1107,6 +1095,7 @@ next
   then show ?case sorry
 qed
 
+
 lemma RGL_dualize_free_comm : 
     fixes f::"RGL_var_type RGL_ext_fml"
   and g:: "RGL_var_type RGL_ext_game"
@@ -1115,7 +1104,7 @@ lemma RGL_dualize_free_comm :
 assumes "x \<noteq> y"
 shows "RGL_dualize_free x (RGL_dualize_free y g) = RGL_dualize_free y (RGL_dualize_free x g)"
   "RGL_dualize_free_fml x (RGL_dualize_free_fml y f) = RGL_dualize_free_fml y (RGL_dualize_free_fml x f)"
-apply (induction g and f) apply auto done
+  by (induction g and f) (auto)
 
 
 lemma RGL_syn_dual__dualize_free_comm :
