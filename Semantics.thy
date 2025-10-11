@@ -720,9 +720,6 @@ fun RGL_fml_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<
 | "RGL_game_sem N I (RGL_Seq g1 g2) A = compo (Pow (World N)) (RGL_game_sem N I g2) (RGL_game_sem N I g1) A"
 | "RGL_game_sem N I (RGL_Rec x g) A =  (Lfp (World N) (\<lambda>u. (RGL_game_sem N (I(x:=u)) g))) A"
 
-lemma RGL_Choice_sem: "RGL_game_sem N I (RGL_Choice g1 g2) = (\<lambda>A. (RGL_game_sem N I g1 A) \<union> (RGL_game_sem N I g2 A))"
-  by auto
-
 lemma RGL_Test_sem_eff: 
   assumes "is_nbd_struct N"
         "RGL_fml_sem N I f\<subseteq> World N"
@@ -737,6 +734,8 @@ proof
   qed
 qed
 
+lemma RGL_Choice_sem: "RGL_game_sem N I (RGL_Choice g1 g2) = (\<lambda>A. (RGL_game_sem N I g1 A) \<union> (RGL_game_sem N I g2 A))"
+  by auto
 lemma RGL_Choice_sem_eff:
   assumes "is_nbd_struct N" and "RGL_game_sem N I g1 \<in> effective_fn_of (World N)" and "RGL_game_sem N I g2 \<in> effective_fn_of (World N)"
   shows "RGL_game_sem N I (RGL_Choice g1 g2) \<in> effective_fn_of (World N)" 
@@ -791,6 +790,45 @@ next
   case (RGL_Mod g f)
   then show ?case by (auto simp add:effective_fn_of_def carrier_of_def)
 qed
+
+
+lemma RGL_DChoice_sem: 
+  assumes "is_nbd_struct N" and "is_val N I"
+shows"RGL_game_sem N I (RGL_DChoice g1 g2) A = RGL_game_sem N I g1 A \<inter> RGL_game_sem N I g2 A"
+  unfolding RGL_DChoice_def apply (simp add:dual_eff_fn_def)
+  apply rule 
+proof
+  assume a:"A\<subseteq> World N" 
+  then have a2:"(World N - (World N-A)) = A" by auto
+  then have b1:"RGL_game_sem N I g1 A\<subseteq> World N" using RGL_sem_wd(2)[of "N""I""g1"] assms by (auto simp add:effective_fn_of_def carrier_of_def)
+
+  from a have b2:"RGL_game_sem N I g2 A\<subseteq> World N" using RGL_sem_wd(2)[of "N""I""g2"] assms by (auto simp add:effective_fn_of_def carrier_of_def)
+
+  from a2 b1 b2 comp_def
+  show "comp (World N) (comp (World N) (RGL_game_sem N I g1 (World N - (World N - A))) \<union> Semantics.comp (World N) (RGL_game_sem N I g2 (World N - (World N - A)))) = RGL_game_sem N I g1 A \<inter> RGL_game_sem N I g2 A"
+    by auto
+next
+  show "\<not> A\<subseteq> World N \<longrightarrow> undefined = RGL_game_sem N I g1 A \<inter> RGL_game_sem N I g2 A"
+  proof
+    assume a:"\<not> A\<subseteq> World N"
+  from RGL_sem_wd(2)[of "N""I""g1"] assms have c1:"RGL_game_sem N I g1 \<in> extension (Pow (World N))" by (auto simp add:effective_fn_of_def carrier_of_def)
+  from RGL_sem_wd(2)[of "N""I""g2"] assms have c2:"RGL_game_sem N I g2 \<in> extension (Pow (World N))" by (auto simp add:effective_fn_of_def carrier_of_def)
+    show "undefined = RGL_game_sem N I g1 A \<inter> RGL_game_sem N I g2 A" using c1 c2 a by (auto simp add:extension_def)
+  qed
+qed
+
+lemma RGL_DChoice_sem_fixpt_mono: assumes "is_nbd_struct N" and "is_val N I" and "f1\<in> effective_fn_of (World N)" and "f2\<in> effective_fn_of (World N)"
+  shows
+  "fun_le f1 f2 \<Longrightarrow> fun_le (RGL_game_sem N (I(x := f1)) (RGL_DChoice g1 g2)) (RGL_game_sem N (I(x := f2)) (RGL_DChoice g1 g2))"
+proof -
+  assume a0:"fun_le f1 f2"
+  from RGL_DChoice_sem assms val_modify_val have a1:"RGL_game_sem N (I(x := f1)) (RGL_DChoice g1 g2) = (\<lambda>A. RGL_game_sem N (I(x := f1)) g1 A \<inter> RGL_game_sem N (I(x := f1)) g2 A)" 
+    by blast
+  from RGL_DChoice_sem assms val_modify_val have a2:"RGL_game_sem N (I(x := f2)) (RGL_DChoice g1 g2) = (\<lambda>A. RGL_game_sem N (I(x := f2)) g1 A \<inter> RGL_game_sem N (I(x := f2)) g2 A)" 
+    by blast
+  from a0 a1 a2 show ?thesis apply (simp add:fun_le_def)
+
+
 
 lemma RGL_atm_interp_uniform [simp]: "RGL_game_sem N I (RGL_Atm_Game x) = RGL_game_sem N J (RGL_Atm_Game x)"
   by (cases x) (auto)
@@ -946,6 +984,8 @@ qed
 definition RGL_fixpt_op:: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type \<Rightarrow> RGL_var_type RGL_game \<Rightarrow> RGL_eff_fn_type \<Rightarrow> RGL_eff_fn_type" where
   "RGL_fixpt_op N I x g u = RGL_game_sem N (I(x:=u)) g"
 
+
+
 \<comment>\<open>lemma 3.5 of paper: If rx.\<alpha> is valid, then u\<rightarrow>N[\<alpha>]^I(x:=u) is monotone.
   uses induction on normal form.
 \<close>
@@ -959,8 +999,8 @@ lemma RGL_fixpt_op_mono:
   assumes "RGL_game_valid g" and "g = RGL_Rec x h" and "RGL_nml_game h" and "is_nbd_struct N" and "is_val N I"
   shows "RGL_fixpt_op N I x h \<in> monotone_op_of (World N)"
   using assms
-proof (induction h arbitrary:x g rule: RGL_game_induct)
-  case (RGL_Atm_Game a)
+proof (induction h arbitrary:x rule: RGL_nml_game_induct)
+  case (RGL_nml_Atm_Game a)
   then show ?case 
   proof (cases a)
     case (Agl_gm x1)
@@ -974,7 +1014,7 @@ proof (induction h arbitrary:x g rule: RGL_game_induct)
       by (simp add:RGL_fixpt_op_def is_nbd_struct_def monotone_op_of_def fun_le_def effective_fn_of_def carrier_of_def)
   qed
 next
-  case (RGL_Var y)
+  case (RGL_nml_Var y)
   then show ?case
     using assms(5) by (auto simp add:RGL_fixpt_op_def is_val_def monotone_op_of_def fun_le_def)
 next
@@ -1037,6 +1077,17 @@ next
     next
       case (RGL_nml_DChoice g1 g2)
       then show ?thesis sorry
+  \<comment>\<open>
+      unfolding RGL_fixpt_op_def
+      proof (auto simp add:monotone_op_of_def)
+        fix y assume a:"y \<in> effective_fn_of (World N)" show "RGL_game_sem N (I(x := y)) (RGL_DChoice g1 g2) \<in> effective_fn_of (World N)"
+          using assms RGL_sem_wd(2) val_modify_val a by blast
+
+        fix f1 f2 assume "f1 \<in> effective_fn_of (World N)" and "f2 \<in> effective_fn_of (World N)" and "fun_le f1 f2"
+        show "fun_le (RGL_game_sem N (I(x := f1)) (RGL_DChoice g1 g2)) (RGL_game_sem N (I(x := f2)) (RGL_DChoice g1 g2))"
+          
+      qed
+\<close>
     next
       case (RGL_nml_DRec x g)
       then show ?thesis sorry

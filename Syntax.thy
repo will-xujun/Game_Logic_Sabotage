@@ -244,6 +244,20 @@ inductive RGL_nml_game:: "'c RGL_game \<Rightarrow> bool"
   | RGL_nml_And: "RGL_nml_fml f1 \<Longrightarrow> RGL_nml_fml f2 \<Longrightarrow> RGL_nml_fml (RGL_And f1 f2)"
   | RGL_nml_Mod: "RGL_nml_game g \<Longrightarrow> RGL_nml_fml f \<Longrightarrow> RGL_nml_fml (RGL_Mod g f)"
 
+lemma RGL_nml_game_induct [case_names RGL_nml_Atm_Game RGL_nml_Var RGL_nml_DVar RGL_nml_Test RGL_nml_DTest RGL_nml_Choice RGL_nml_DChoice RGL_nml_Seq RGL_nml_Rec RGL_nml_DRec]:
+  "(\<And>a. P (RGL_Atm_Game a))
+    \<Longrightarrow> (\<And>x. P (RGL_Var x))
+    \<Longrightarrow> (\<And>x. P (RGL_Dual (RGL_Var x)))
+    \<Longrightarrow> (\<And>f. P (RGL_Test f))
+    \<Longrightarrow> (\<And>f. P (RGL_DTest f))
+    \<Longrightarrow> (\<And>g1 g2. RGL_nml_game g1 \<Longrightarrow> P g1 \<Longrightarrow> RGL_nml_game g2 \<Longrightarrow> P g2 \<Longrightarrow> P (RGL_Choice g1 g2))
+    \<Longrightarrow> (\<And>g1 g2. RGL_nml_game g1 \<Longrightarrow> P g1 \<Longrightarrow> RGL_nml_game g2 \<Longrightarrow> P g2 \<Longrightarrow> P (RGL_DChoice g1 g2))
+    \<Longrightarrow> (\<And>g1 g2. RGL_nml_game g1 \<Longrightarrow> P g1 \<Longrightarrow> RGL_nml_game g2 \<Longrightarrow> P g2 \<Longrightarrow> P (RGL_Seq g1 g2))
+    \<Longrightarrow> (\<And>x g. RGL_nml_game g \<Longrightarrow>P g \<Longrightarrow> P (RGL_Rec x g))
+    \<Longrightarrow> (\<And>x g. RGL_nml_game g \<Longrightarrow>P g \<Longrightarrow> P (RGL_DRec x g))
+    \<Longrightarrow> (RGL_nml_game \<alpha> \<Longrightarrow> P \<alpha>)
+  "
+  by (auto simp add:Syntax.RGL_nml_game_RGL_nml_fml.inducts(1))
 
 datatype Lmu_fml = 
   Lmu_Id
