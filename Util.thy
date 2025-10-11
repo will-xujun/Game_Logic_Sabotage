@@ -11,7 +11,16 @@ definition fun_le :: "('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Righ
 "fun_le f g = (\<forall>x. f x \<subseteq> g x)"
 
 definition extension :: "'a set set \<Rightarrow> ('a set \<Rightarrow> 'a set) set" where
-  "extension B = {f. \<forall>x. x \<notin> B \<longrightarrow> f x = {} }"
+  "extension B = {f. \<forall>x. x \<notin> B \<longrightarrow> f x = undefined }"
+
+definition compo :: "'a set \<Rightarrow> ('b \<Rightarrow> 'c) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'c)"
+  where "compo A g f = (\<lambda>x\<in>A. g (f x))"
+
+lemma extension_union_extension: "f\<in> extension A\<Longrightarrow> g\<in> extension A \<Longrightarrow> (\<lambda>x. f x \<union> g x) \<in> extension A"
+  by (simp add:extension_def)
+
+lemma extension_compo_extension: "f\<in> extension A\<Longrightarrow> g \<in> extension A \<Longrightarrow> compo A g f \<in> extension A"
+  by (simp add:compo_def extension_def)
 
 definition empty_func :: "'a set \<Rightarrow> 'a set" where
   "empty_func A = {}"
@@ -22,11 +31,35 @@ definition extension_fn :: "('a set \<Rightarrow> 'a set) set \<Rightarrow> (('a
 definition carrier_of :: "'a set \<Rightarrow> ('a set\<Rightarrow> 'a set) set" where
   "carrier_of A = (Pow A\<rightarrow>Pow A) \<inter> extension (Pow A)"
 
+lemma funcset_compo_funcset: "f\<in> Pow A \<rightarrow> Pow A \<Longrightarrow> g\<in> Pow A \<rightarrow> Pow A \<Longrightarrow> (compo (Pow A) g f) \<in> Pow A \<rightarrow> Pow A"
+  by (simp add: Pi_iff compo_def)
+
+lemma carrier_compo_carrier: "f\<in> carrier_of A \<Longrightarrow> g\<in> carrier_of A \<Longrightarrow> (compo (Pow A) g f) \<in> carrier_of A"
+  using extension_compo_extension[of "f" "Pow A" "g"] funcset_compo_funcset[of "f" "A" "g"] carrier_of_def[of "A"] by auto 
+
+lemma carrier_union_carrier: "f\<in> carrier_of A \<Longrightarrow> g\<in> carrier_of A \<Longrightarrow> (\<lambda>x. f x \<union> g x) \<in> carrier_of A"
+  using extension_union_extension by (auto simp add:carrier_of_def)
+
 definition mono_of :: "'a set \<Rightarrow> ('a set \<Rightarrow> 'a set) set" where
   "mono_of A = {f.  \<forall>x y. x\<subseteq>A \<and> y\<subseteq>A \<and> x \<subseteq> y \<longrightarrow> f x \<subseteq> f y}"
 
 definition effective_fn_of :: "'a set \<Rightarrow> ('a set \<Rightarrow> 'a set) set" where
-  "effective_fn_of A = (Pow A\<rightarrow>Pow A) \<inter> mono_of A"
+  "effective_fn_of A = carrier_of A \<inter> mono_of A "
+
+lemma eff_compo_mono: "f\<in> carrier_of A \<inter> mono_of A \<Longrightarrow> g\<in> carrier_of A \<inter> mono_of A \<Longrightarrow> compo (Pow A) g f \<in> mono_of A"
+  apply (simp add: mono_of_def compo_def carrier_of_def)
+  by (simp add: Pi_iff)
+
+lemma mono_union_mono: "f\<in> mono_of A \<Longrightarrow> g\<in> mono_of A \<Longrightarrow> (\<lambda>x. f x \<union> g x) \<in> mono_of A"
+  apply (simp add:mono_of_def)
+  by (simp add: sup.coboundedI1 sup.coboundedI2)
+
+lemma eff_compo_eff: "f\<in> effective_fn_of A \<Longrightarrow> g\<in>effective_fn_of A \<Longrightarrow> compo (Pow A) g f \<in> effective_fn_of A"
+  using eff_compo_mono carrier_compo_carrier apply (auto simp add:effective_fn_of_def)
+  by force
+
+lemma eff_union_eff: "f\<in> effective_fn_of A \<Longrightarrow> g\<in>effective_fn_of A \<Longrightarrow> (\<lambda>x. f x \<union> g x) \<in> effective_fn_of A"
+  using carrier_union_carrier mono_union_mono by (auto simp add:effective_fn_of_def)
 
 definition monotone_op_of ::"'a set \<Rightarrow> ( ('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set) ) set" where
   "monotone_op_of A = (effective_fn_of A \<rightarrow> effective_fn_of A)
@@ -35,18 +68,19 @@ definition monotone_op_of ::"'a set \<Rightarrow> ( ('a set \<Rightarrow> 'a set
 definition Lfp_family :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set)) \<Rightarrow> ('a set \<Rightarrow> 'a set) set" where
   "Lfp_family A f = {\<phi>. \<phi>\<in> effective_fn_of A \<and> fun_le (f \<phi>) \<phi>}"
 
+
 definition Lfp :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set)) \<Rightarrow> ('a set \<Rightarrow> 'a set)" where
-  "Lfp w f a = ambient_inter w {\<phi> a | \<phi>. \<phi> \<in> Lfp_family w f}"
+  "Lfp w f a = (if a \<subseteq> w then ambient_inter w {\<phi> a | \<phi>. \<phi> \<in> Lfp_family w f} else undefined)"
 
 definition max_of :: "'a set \<Rightarrow> ('a set \<Rightarrow> 'a set)" where
-  "max_of A x = (if x\<subseteq>A then A else {})"
+  "max_of A x = (if x\<subseteq>A then A else undefined)"
 
 lemma max_of_in_carrier : "max_of A \<in> carrier_of A"
   apply (auto simp add:max_of_def carrier_of_def)
 proof show "max_of A \<in> extension (Pow A)"
     apply (simp add:extension_def)
   proof
-    fix x show "\<not> x \<subseteq> A \<longrightarrow> max_of A x = {} " by (auto simp add:max_of_def)
+    fix x show "\<not> x \<subseteq> A \<longrightarrow> max_of A x = undefined " by (auto simp add:max_of_def)
   qed
   show "extension (Pow A) \<subseteq> extension (Pow A) " by auto
 qed
@@ -60,44 +94,41 @@ qed
 lemma max_of_mono : "max_of A \<in> mono_of A" 
   by (auto simp add:mono_of_def max_of_def)
 
-lemma carrier_op_funcset : "f\<in> monotone_op_of A \<Longrightarrow> \<phi>\<in> effective_fn_of A \<Longrightarrow> f \<phi> \<in> (Pow A\<rightarrow> Pow A) "
-  by (simp add: Pi_iff effective_fn_of_def monotone_op_of_def)
+lemma max_of_effective [simp]: "max_of A \<in> effective_fn_of A"
+  using max_of_mono[of "A"] max_of_in_carrier[of "A"] by (simp add:effective_fn_of_def)
+
+lemma effective_op_effective : "f\<in> monotone_op_of A \<Longrightarrow> \<phi>\<in> effective_fn_of A \<Longrightarrow> f \<phi> \<in> effective_fn_of A "
+  by (simp add: Pi_iff monotone_op_of_def)
 
 lemma max_of_properties : 
   assumes "A \<noteq> {}"
     and P1: " f\<in> monotone_op_of A "
-  shows "max_of A \<in> Pow A \<rightarrow> Pow A \<and> (\<forall>xa. xa \<subseteq> A \<or> max_of A xa = {})
+  shows "max_of A \<in> effective_fn_of A
 \<and> (\<forall> xa. f (max_of A) xa \<subseteq> max_of A xa)"
   proof -
-    have R1: "max_of A \<in> Pow A \<rightarrow> Pow A" by (auto simp add: max_of_def)
-    have R2: "\<forall>xa. xa \<subseteq> A \<or> max_of A xa = {}" by (auto simp add: max_of_def)
-    have R3: "\<forall>xa. f (max_of A) xa \<subseteq> max_of A xa"
+    have R1: "max_of A \<in> effective_fn_of A" using max_of_effective by auto
+    have R2: "\<forall>xa. f (max_of A) xa \<subseteq> max_of A xa"
       apply (simp add:max_of_def)
     proof 
-      fix xa show "(xa \<subseteq> A \<longrightarrow> f (max_of A) xa \<subseteq> A) \<and> (\<not> xa \<subseteq> A \<longrightarrow> f (max_of A) xa = {})"
+      fix xa show "(xa \<subseteq> A \<longrightarrow> f (max_of A) xa \<subseteq> A) \<and> (\<not> xa \<subseteq> A \<longrightarrow> f (max_of A) xa \<subseteq> undefined)"
       proof -
         have Q1:"xa \<subseteq> A \<longrightarrow> f (max_of A) xa \<subseteq> A"
         proof -
-          have P2: "max_of A \<in> effective_fn_of A" using max_of_in_funcset[of "A"] max_of_mono by (auto simp add:effective_fn_of_def)
-          then have "f (max_of A) \<in> Pow A \<rightarrow> Pow A"
-          proof -
-            have "f\<in> monotone_op_of A \<Longrightarrow> max_of A \<in> effective_fn_of A \<Longrightarrow> f (max_of A) \<in> Pow A\<rightarrow> Pow A"
-              by (rule carrier_op_funcset[of "f" "A" "max_of A"]) (auto)
-            then show "f (max_of A) \<in> Pow A\<rightarrow> Pow A" using assms P2 by auto
-          qed
-          thus ?thesis by auto
+          have P2: "max_of A \<in> effective_fn_of A" by simp
+          then have "f (max_of A) \<in> effective_fn_of A" using assms by (auto simp add:monotone_op_of_def)
+          thus ?thesis by (auto simp add:effective_fn_of_def carrier_of_def)
         qed
 
-        have Q2: "(\<not> xa \<subseteq> A \<longrightarrow> f (max_of A) xa = {})"
-        proof -
-          have P2: "max_of A \<in> Pow A \<rightarrow> Pow A" by (rule max_of_in_funcset[of "A"])
-          from P1 P2 have "f (max_of A) \<in> extension (Pow A)" using carrier_op_ext[of "f" "A" "max_of A"] by auto
-          thus "\<not> xa \<subseteq> A \<longrightarrow> f (max_of A) xa = {}" by (auto simp add:extension_def)
+        have Q2: "(\<not> xa \<subseteq> A \<longrightarrow> f (max_of A) xa = undefined)"
+        proof assume a:"\<not> xa \<subseteq> A"
+          have "f (max_of A)\<in> effective_fn_of A" using assms effective_op_effective[of "f" "A" "max_of A"] by simp 
+          then have "f (max_of A) \<in> extension (Pow A)" by (auto simp add:effective_fn_of_def carrier_of_def)
+          then show "f (max_of A) xa = undefined" using a by (simp add:effective_fn_of_def carrier_of_def extension_def)
         qed
-        from Q1 Q2 show ?thesis by rule
+        from Q1 Q2 show ?thesis by auto
       qed
     qed
-    from R1 R2 R3 show ?thesis by auto
+    from R1 R2 show ?thesis by auto
   qed
 
 lemma Lfp_family_nonempty :
@@ -106,7 +137,7 @@ lemma Lfp_family_nonempty :
   shows " Lfp_family A f \<noteq> {}"
   apply (simp add:Lfp_family_def carrier_of_def extension_def fun_le_def)
 proof
-  show "max_of A \<in> Pow A \<rightarrow> Pow A \<and> (\<forall>xa. xa \<subseteq> A \<or> (max_of A) xa = {}) \<and> (\<forall>xa. f (max_of A) xa \<subseteq> (max_of A) xa)"
+  show "max_of A \<in> effective_fn_of A \<and> (\<forall>x. f (max_of A) x \<subseteq> (max_of A) x)"
     using assms max_of_properties[of "A" "f"] by auto
 qed
 
@@ -116,41 +147,28 @@ definition Gfp_family :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<
 definition Gfp :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set)) \<Rightarrow> ('a set \<Rightarrow> 'a set)" where
   "Gfp w f a = \<Union>{\<phi> a | \<phi>. \<phi>\<in> Gfp_family w f}"
 
-lemma Lfp_in_carrier : 
-  assumes "f\<in> monotone_op_of w"
-  and "w\<noteq> {}"
-shows "Lfp w f a \<subseteq> w"
+lemma Lfp_in_carrier : "Lfp w f \<in> carrier_of w"
+  apply (auto simp add:carrier_of_def)
 proof -
-  consider (In) "a \<subseteq> w" | (NotIn) "\<not> a\<subseteq> w" by auto
-  then have ?thesis
-  proof cases
-    case In
-    then have P0: "\<And>\<phi>. \<phi> \<in> Pow w \<rightarrow> Pow w \<Longrightarrow> \<phi> a\<subseteq>w" by auto
-    then show "Lfp w f a \<subseteq> w"
-      apply (simp add:Lfp_def Lfp_family_def carrier_of_def)
-    proof
-      fix x
-      assume P1: " x\<in> \<Inter> {\<phi> a |\<phi>. \<phi> \<in> Pow w \<rightarrow> Pow w \<and> \<phi> \<in> extension (Pow w) \<and> fun_le (f \<phi>) \<phi>}"
-      show "x \<in> w"
-      proof -
-        from P1 have P2:"\<And>\<phi>.  \<phi> \<in> Pow w \<rightarrow> Pow w \<and> \<phi> \<in> extension (Pow w) \<and> fun_le (f \<phi>) \<phi> \<Longrightarrow> x \<in> \<phi> a" by auto
-        have P3: "(\<forall>xa. f (max_of w) xa \<subseteq> max_of w xa)" using max_of_properties[of "w" "f"] assms by auto
-        from P0[of "max_of w"] max_of_properties[of "w" "f"] assms have P4: "max_of w a \<subseteq> w" by auto
-        have P5: "x \<in> max_of w a" using max_of_properties[of "w" "f"] P2[of "max_of w"] assms by (auto simp add:extension_def fun_le_def)
-        thus ?thesis using P4  In assms by auto
-      qed
-    qed
-  next
-    case NotIn
-    show "Lfp w f a \<subseteq> w" apply (simp add:Lfp_def Lfp_family_def)
-    proof - 
-      have "\<And>\<phi>. \<phi> \<in> carrier_of w \<and> fun_le (f \<phi>) \<phi> \<Longrightarrow> \<phi> a = {}" using NotIn by (auto simp add:carrier_of_def extension_def)
-      then have "\<Inter> {\<phi> a |\<phi>. \<phi> \<in> carrier_of w \<and> fun_le (f \<phi>) \<phi>} = {}"
-      by (smt (verit) Inter_iff Lfp_family_def Lfp_family_nonempty assms(1,2) empty_iff equals0I mem_Collect_eq)
-    then show "\<Inter> {\<phi> a |\<phi>. \<phi> \<in> carrier_of w \<and> fun_le (f \<phi>) \<phi>} \<subseteq> w" by simp
-    qed
-  qed
-  thus ?thesis by simp
+  fix x xa
+  show "x \<subseteq> w \<Longrightarrow> xa \<in> Lfp w f x \<Longrightarrow> xa \<in> w" unfolding Lfp_def ambient_inter_def by auto
+
+  show "Lfp w f \<in> extension (Pow w)" unfolding Lfp_def Lfp_family_def effective_fn_of_def carrier_of_def
+    by (simp add:extension_def ambient_inter_def)
+qed
+
+lemma Lfp_eff: "Lfp w f \<in> effective_fn_of w"
+  apply (simp add:effective_fn_of_def)
+  apply (auto simp add:Lfp_in_carrier)
+  unfolding Lfp_def mono_of_def apply auto
+proof -
+  fix x y z assume a0:"z \<in> ambient_inter w {\<phi> x |\<phi>. \<phi> \<in> Lfp_family w f}" 
+    and a1:"x \<subseteq> w"
+    and a2:"y \<subseteq> w"
+    and a3:"x \<subseteq> y"
+  have "\<And>\<phi>. \<phi>\<in> Lfp_family w f \<Longrightarrow> \<phi> x \<subseteq> \<phi> y" using a1 a2 a3 by (auto simp add:Lfp_family_def effective_fn_of_def mono_of_def)
+  then show "z \<in> ambient_inter w {\<phi> y |\<phi>. \<phi> \<in> Lfp_family w f}" using a0
+  by (smt (verit, ccfv_threshold) ambient_inter_def in_mono mem_Collect_eq)
 qed
 
 \<comment>\<open>locale-based implementation\<close>

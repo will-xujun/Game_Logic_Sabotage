@@ -41,6 +41,9 @@ type_synonym 'a val = "var_type \<Rightarrow> 'a eff_fn_type"
 definition is_val :: "'a Nbd_Struct \<Rightarrow> 'a val \<Rightarrow> bool" where
   "is_val N I \<equiv> \<forall>i. I i \<in> effective_fn_of (World N)"
 
+lemma val_modify_val: "f\<in>effective_fn_of (World N) \<Longrightarrow> is_val N I \<Longrightarrow> is_val N (I(x:=f))"
+  by (simp add:is_val_def)
+
 lemma val_modify_compat: "x=y \<Longrightarrow> (I(x:=a)) y = a &&& x\<noteq>y \<Longrightarrow> (I(x:=a)) y = I y"
   by linarith
 
@@ -100,9 +103,9 @@ lemma cx_negate_compat [simp]:
   using assms by (auto simp add:ALL_CX_def Sab_def)
 
 definition comp :: "'a set \<Rightarrow> 'a set \<Rightarrow> 'a set" where
-  "comp N A = (if A\<subseteq> N then N-A else {})"
+  "comp N A = (if A \<subseteq> N then N-A else undefined)"
 
-lemma comp_compat [simp] : assumes "A \<subseteq> N" shows "comp N A\<subseteq> N" by (auto simp add:comp_def)
+lemma comp_compat [simp] : assumes "A \<subseteq> N" shows "comp N A\<subseteq> N" using assms by (auto simp add:comp_def)
 
 lemma comp_subset_is_diff [simp]: assumes "A\<subseteq>N" shows "comp N A = N - A"
   using assms by (auto simp add:comp_def)
@@ -114,7 +117,7 @@ lemma comp_flip [simp]:
   by (metis Diff_mono order_refl)
 
 definition dual_eff_fn :: "'a Nbd_Struct  \<Rightarrow> 'a eff_fn_type \<Rightarrow> 'a eff_fn_type" where
-  "dual_eff_fn N f A = comp (World N) (f (comp (World N) A ))"
+  "dual_eff_fn N f A = (if A\<subseteq> World N then comp (World N) (f (comp (World N) A )) else undefined)"
 
 lemma dual_eff_fn_compat[simp]:
   fixes N :: "'a Nbd_Struct"
@@ -122,8 +125,7 @@ lemma dual_eff_fn_compat[simp]:
   assumes "is_nbd_struct N" "f\<in>Pow (World N) \<rightarrow> Pow (World N)"
   shows "dual_eff_fn N f \<in> Pow (World N) \<rightarrow> Pow (World N)"
   using assms apply (auto simp add:effective_fn_of_def carrier_of_def is_nbd_struct_def)
-    apply (simp add:dual_eff_fn_def)
-  apply (metis Diff_subset Semantics.comp_def equals0D in_mono)
+    apply (simp add:dual_eff_fn_def Pi_iff)
   done
 
 lemma mono_dual_mono[simp]:
@@ -133,6 +135,14 @@ assumes "f\<in> mono_of (World N)" and "f\<in> Pow (World N)\<rightarrow> Pow (W
 shows "dual_eff_fn N f \<in> mono_of (World N)"
   using assms apply (auto simp add:dual_eff_fn_def mono_of_def comp_def)
   by (meson Diff_mono Diff_subset in_mono subset_iff_psubset_eq)
+
+lemma extension_dual_extension [simp]:
+  assumes "f \<in> extension (Pow (World N))" shows "dual_eff_fn N f \<in>  extension (Pow (World N))"
+  by (simp add:extension_def dual_eff_fn_def)
+
+lemma effective_dual_effective [simp]:
+  assumes "f \<in> effective_fn_of (World N)" and "is_nbd_struct N" shows "dual_eff_fn N f \<in> effective_fn_of (World N)"
+  using assms by (simp add:effective_fn_of_def carrier_of_def)
 
 section \<open>The GLs extension of base \<close>
 
@@ -147,7 +157,7 @@ definition lift_game_interp :: "ground_type Nbd_Struct \<Rightarrow> (Atm_game \
 "lift_game_interp N a (U::(int\<times>(int \<Rightarrow> int)) set)
   = (if U \<subseteq> World N \<times> ALL_CX 
     then {(w,c)\<in> World N \<times> ALL_CX. (c a = 0) \<and> (w \<in> (GameInterp N) a (fst ` U)) \<or> (c a = 1) \<and> ((w,c)\<in> U)}
-    else {})"
+    else undefined)"
 
 lemma lift_game_interp_comat:
   fixes N :: "ground_type Nbd_Struct"
@@ -351,6 +361,7 @@ lemma carrier_lift_carrier : assumes "is_nbd_struct N"
   shows "GameInterp (GLs_lift_nbd N) g \<in> carrier_of (World (GLs_lift_nbd N))"
   apply (simp add:GLs_lift_nbd_def carrier_of_def extension_def)
   apply (auto simp add:lift_game_interp_def)
+  
   done
 
 lemma prop_lift_prop : assumes "is_nbd_struct N" 
@@ -704,10 +715,32 @@ fun RGL_fml_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<
 | "RGL_game_sem N I (RGL_Atm_Game (Dmn_gm a)) A = (dual_eff_fn N (GameInterp N a)) A"
 | "RGL_game_sem N I (RGL_Var x) A = I x A"
 | "RGL_game_sem N I (RGL_Dual g) A = (dual_eff_fn N (RGL_game_sem N I g)) A"
-| "RGL_game_sem N I (RGL_Test fl) A = (RGL_fml_sem N I fl) \<inter> A"
+| "RGL_game_sem N I (RGL_Test fl) A = (if A \<subseteq> (World N) then (RGL_fml_sem N I fl) \<inter> A else undefined)"
 | "RGL_game_sem N I (RGL_Choice g1 g2) A = (RGL_game_sem N I g1 A) \<union> (RGL_game_sem N I g2 A)"
-| "RGL_game_sem N I (RGL_Seq g1 g2) A = (RGL_game_sem N I g2) ((RGL_game_sem N I g1) A)"
+| "RGL_game_sem N I (RGL_Seq g1 g2) A = compo (Pow (World N)) (RGL_game_sem N I g2) (RGL_game_sem N I g1) A"
 | "RGL_game_sem N I (RGL_Rec x g) A =  (Lfp (World N) (\<lambda>u. (RGL_game_sem N (I(x:=u)) g))) A"
+
+lemma RGL_Choice_sem: "RGL_game_sem N I (RGL_Choice g1 g2) = (\<lambda>A. (RGL_game_sem N I g1 A) \<union> (RGL_game_sem N I g2 A))"
+  by auto
+
+lemma RGL_Test_sem_eff: 
+  assumes "is_nbd_struct N"
+        "RGL_fml_sem N I f\<subseteq> World N"
+      shows "RGL_game_sem N I (RGL_Test f) \<in> effective_fn_of (World N)"
+  apply (simp add:effective_fn_of_def carrier_of_def)
+proof
+  show "RGL_game_sem N I (RGL_Test f) \<in> Pow (World N) \<rightarrow> Pow (World N)" by auto
+  show "RGL_game_sem N I (RGL_Test f) \<in> extension (Pow (World N)) \<and> RGL_game_sem N I (RGL_Test f) \<in> mono_of (World N) "
+  proof
+    show "RGL_game_sem N I (RGL_Test f) \<in> extension (Pow (World N))" by (simp add:extension_def)
+    show "RGL_game_sem N I (RGL_Test f) \<in> mono_of (World N)" by (auto simp add:mono_of_def)
+  qed
+qed
+
+lemma RGL_Choice_sem_eff:
+  assumes "is_nbd_struct N" and "RGL_game_sem N I g1 \<in> effective_fn_of (World N)" and "RGL_game_sem N I g2 \<in> effective_fn_of (World N)"
+  shows "RGL_game_sem N I (RGL_Choice g1 g2) \<in> effective_fn_of (World N)" 
+    using assms eff_union_eff[of "RGL_game_sem N I g1" "World N" "RGL_game_sem N I g2"] RGL_Choice_sem[of "N""I""g1""g2"] by auto
 
 lemma RGL_sem_wd:
   fixes N :: "RGL_ground_type Nbd_Struct"
@@ -716,56 +749,48 @@ assumes "is_nbd_struct N"
     and "is_val N I"
   shows
     "(RGL_fml_sem N I f) \<subseteq> (World N)"
-    "\<And>A. A \<subseteq> (World N) \<Longrightarrow> (RGL_game_sem N I g) A \<subseteq> (World N)"
-proof (induction f and g arbitrary:A)
+    "(RGL_game_sem N I g) \<in> effective_fn_of (World N)"
+proof (induction f and g)
   case (RGL_Atm_Game x)
   then show ?case
   proof (cases x)
     case (Agl_gm x1)
-    then show ?thesis using assms apply (auto simp add:is_nbd_struct_def carrier_of_def)
-      using RGL_Atm_Game by blast
+    then show ?thesis using assms by (auto simp add:is_nbd_struct_def effective_fn_of_def)
   next
     case (Dmn_gm x2)
-    then show ?thesis using assms apply (auto simp add:is_nbd_struct_def carrier_of_def)
-      by (smt (verit, ccfv_threshold) PiE Pow_bottom Pow_def Pow_iff RGL_Atm_Game Semantics.comp_compat dual_eff_fn_def in_mono)
+    then show ?thesis using assms by (auto simp add:is_nbd_struct_def effective_fn_of_def carrier_of_def)
   qed
 next
   case (RGL_Var x)
-  then show ?case using assms by (auto simp add: is_val_def effective_fn_of_def)
+  then show ?case using assms by (auto simp add: is_val_def effective_fn_of_def carrier_of_def)
 next
   case (RGL_Dual x)
-  then show ?case using assms dual_eff_fn_compat RGL_Dual.IH
-    by (simp add: Semantics.comp_def dual_eff_fn_def)
+  then show ?case using assms dual_eff_fn_compat RGL_Dual.IH effective_dual_effective by auto
 next
-  case (RGL_Test x)
-  then show ?case by auto
+  case (RGL_Test f)
+  then show ?case using RGL_Test_sem_eff[of "N" "I" "f"] assms RGL_Test.prems by blast
 next
-  case (RGL_Choice x1 x2)
-  then show ?case by simp
+  case (RGL_Choice g1 g2)
+  then show ?case using RGL_Choice_sem_eff assms by blast
 next
   case (RGL_Seq g1 g2)
-  then show ?case
-  proof (simp)
-    from RGL_Seq.prems RGL_Seq.IH have "RGL_game_sem N I g1 A \<subseteq> World N" by auto
-    then have "RGL_game_sem N I g2 (RGL_game_sem N I g1 A) \<subseteq> World N" using RGL_Seq.IH by auto
-  qed
+  then show ?case using eff_compo_eff by auto
 next
   case (RGL_Rec x g)
-  then show ?case 
+  then show ?case using Lfp_eff by auto
 next
   case (RGL_Atm_fml x)
-  then show ?case sorry
+  then show ?case using assms by (auto simp add:is_nbd_struct_def)
 next
   case (RGL_Not x)
-  then show ?case sorry
+  then show ?case by auto
 next
   case (RGL_Or x1 x2)
-  then show ?case sorry
+  then show ?case by auto
 next
-  case (RGL_Mod x1 x2)
-  then show ?case sorry
+  case (RGL_Mod g f)
+  then show ?case by (auto simp add:effective_fn_of_def carrier_of_def)
 qed
-
 
 lemma RGL_atm_interp_uniform [simp]: "RGL_game_sem N I (RGL_Atm_Game x) = RGL_game_sem N J (RGL_Atm_Game x)"
   by (cases x) (auto)
@@ -834,7 +859,9 @@ next
   case (RGL_Test f')
   then show ?case 
   proof - have "free_var f' = free_var_game (RGL_Test f')" by auto
-    then show ?thesis using RGL_Test.IH[of "I" "J"] RGL_Test.prems by auto
+    then show ?thesis using RGL_Test.IH[of "I" "J"] RGL_Test.prems
+      apply auto
+      by presburger
   qed
 next
   case (RGL_Choice g1 g2)
@@ -901,62 +928,23 @@ next
   qed
 qed
 
-lemma RGL_test_interp_uniform: assumes "RGL_fml_closed f" and "RGL_game_closed g"
-  shows "RGL_fml_sem N K f = RGL_fml_sem N L f"
-        "RGL_game_sem N I g = RGL_game_sem N J g"
-  using assms
+lemma RGL_closed_sem_uniform:
+  "RGL_fml_closed f \<Longrightarrow> RGL_fml_sem N K f = RGL_fml_sem N L f"
+  "RGL_game_closed g \<Longrightarrow> RGL_game_sem N I g = RGL_game_sem N J g"
 proof -
-  have "free_var f = {}" using assms by (simp add:RGL_fml_closed_def)
+  assume "RGL_fml_closed f"
+  then have "free_var f = {}" by (simp add:RGL_fml_closed_def)
   then have "\<forall>x \<in> free_var f. K x = L x" by simp
   then show R2:"RGL_fml_sem N K f = RGL_fml_sem N L f" using RGL_Rec_sem_local by simp
-
-  have "free_var_game g = {}" using assms by (simp add:RGL_game_closed_def)
+next
+  assume "RGL_game_closed g"
+  then have "free_var_game g = {}" by (simp add:RGL_game_closed_def)
   then have "\<forall>x \<in> free_var_game g. I x = J x" by simp
   then show "RGL_game_sem N I g = RGL_game_sem N J g" using RGL_Rec_sem_local by simp
 qed
 
 definition RGL_fixpt_op:: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type \<Rightarrow> RGL_var_type RGL_game \<Rightarrow> RGL_eff_fn_type \<Rightarrow> RGL_eff_fn_type" where
   "RGL_fixpt_op N I x g u = RGL_game_sem N (I(x:=u)) g"
-
-lemma RGL_fixpt_compat:
-  assumes "fun_le u v" and "is_nbd_struct N" and "is_val N I"
-  shows "RGL_fml_sem N (I(x:=u)) f \<subseteq> RGL_fml_sem N (I(x:=v)) f"
-        "fun_le (RGL_game_sem N (I(x:=u)) g) (RGL_game_sem N (I(x:=v)) g)"
-proof (induction f and g)
-  case (RGL_Atm_Game x)
-  then show ?case using RGL_atm_interp_uniform
-    by (metis fun_le_def subsetI)
-next
-  case (RGL_Var x)
-  then show ?case using assms RGL_var_interp_mono fun_le_def by auto
-next
-  case (RGL_Dual g)
-  then show ?case sorry
-next
-  case (RGL_Test x)
-  then show ?case sorry
-next
-  case (RGL_Choice x1 x2)
-  then show ?case sorry
-next
-  case (RGL_Seq x1 x2)
-  then show ?case sorry
-next
-  case (RGL_Rec x1 x2)
-  then show ?case sorry
-next
-  case (RGL_Atm_fml x)
-  then show ?case sorry
-next
-  case (RGL_Not x)
-  then show ?case sorry
-next
-  case (RGL_Or x1 x2)
-  then show ?case sorry
-next
-  case (RGL_Mod x1 x2)
-  then show ?case sorry
-qed
 
 \<comment>\<open>lemma 3.5 of paper: If rx.\<alpha> is valid, then u\<rightarrow>N[\<alpha>]^I(x:=u) is monotone.
   uses induction on normal form.
@@ -983,7 +971,7 @@ proof (induction h arbitrary:x g rule: RGL_game_induct)
     case (Dmn_gm x2)
     then show ?thesis 
       using assms
-      by (simp add:RGL_fixpt_op_def is_nbd_struct_def monotone_op_of_def fun_le_def effective_fn_of_def)
+      by (simp add:RGL_fixpt_op_def is_nbd_struct_def monotone_op_of_def fun_le_def effective_fn_of_def carrier_of_def)
   qed
 next
   case (RGL_Var y)
@@ -1013,9 +1001,11 @@ next
             using RGL_game_sem.simps(3) a1 by presburger
 
           have "(\<lambda>a. dual_eff_fn N (I y)) \<in> monotone_op_of (World N)"
-            apply (auto simp add:monotone_op_of_def fun_le_def effective_fn_of_def)
-             apply (metis (no_types, lifting) Semantics.comp_compat Semantics.comp_def dual_eff_fn_def empty_iff subsetD)
-            by (metis Int_iff RGL_Dual.prems(5) effective_fn_of_def is_val_def mono_dual_mono)
+          proof -
+            from assms(5) is_val_def[of "N" "I"] have "I y \<in> effective_fn_of (World N)" by auto
+            then have a:"dual_eff_fn N (I y)\<in> effective_fn_of (World N)" using effective_dual_effective[of "I y" "N"] assms by auto
+            then show ?thesis by (auto simp add:monotone_op_of_def fun_le_def)
+          qed
 
           then show "(\<lambda>a. dual_eff_fn N (RGL_game_sem N (I(x := a)) (RGL_Var y))) \<in> monotone_op_of (World N)"
             using a by simp
@@ -1028,8 +1018,20 @@ next
         have a1:"g' = RGL_Test f" using local.RGL_nml_DTest(1) unfolding RGL_DTest_def by auto
         have a2:"RGL_fml_closed f" using local.RGL_nml_DTest by simp
         show ?thesis unfolding RGL_DTest_def RGL_fixpt_op_def monotone_op_of_def apply (simp add:a1)
-        proof 
-          from a2 have "RGL_game_sem N (I(x := g1)) (RGL_Test f) = RGL_game_sem N (I(x := g2)) (RGL_Test f)"
+        proof (auto)
+          fix y assume a:"y \<in> effective_fn_of (World N)"
+          have "RGL_game_sem N (I(x := y)) (RGL_Test f) \<in> effective_fn_of (World N)" using RGL_sem_wd(2)[of "N" "I(x := y)"] 
+              assms val_modify_val[of "y""N""I""x"] a by auto
+          then show "dual_eff_fn N (RGL_game_sem N (I(x := y)) (RGL_Test f)) \<in> effective_fn_of (World N)"
+            using effective_dual_effective[of "RGL_game_sem N (I(x := y)) (RGL_Test f)" "N"] assms by auto
+        next
+          from a2 have "RGL_game_closed (RGL_Test f)" by (auto simp add:RGL_game_closed_def RGL_fml_closed_def)
+          then have a:"\<And> g1 g2. RGL_game_sem N (I(x := g1)) (RGL_Test f) = RGL_game_sem N (I(x := g2)) (RGL_Test f)"
+            using RGL_closed_sem_uniform(2)[of "RGL_Test f"] by auto
+          fix g1 g2 assume "g1 \<in> effective_fn_of (World N)" and "g2 \<in> effective_fn_of (World N)" and "fun_le g1 g2"
+          from a have "RGL_game_sem N (I(x := g1)) (RGL_Test f) = RGL_game_sem N (I(x := g2)) (RGL_Test f)" by auto
+          then show "fun_le (dual_eff_fn N (RGL_game_sem N (I(x := g1)) (RGL_Test f))) (dual_eff_fn N (RGL_game_sem N (I(x := g2)) (RGL_Test f)))"
+            unfolding fun_le_def by auto
         qed
       qed
     next
