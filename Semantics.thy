@@ -1006,6 +1006,43 @@ next
   then show ?case
     using assms(5) by (auto simp add:RGL_fixpt_op_def is_val_def monotone_op_of_def fun_le_def)
 next
+  case (RGL_nml_DVar y)
+  then show ?case
+  proof -
+    consider (Eq) "x=y" | (Neq) "x\<noteq>y" by auto
+      then show ?thesis
+      proof cases
+        case Eq
+          from RGL_nml_DVar.prems(1) RGL_nml_DVar.prems(2) have "RGL_even_dual True x (RGL_Dual (RGL_Var y))" by (auto simp add:RGL_game_valid_def RGL_Rec_valid_def)
+          from this local.RGL_nml_DVar Eq have False by auto 
+          then show ?thesis by simp
+      next
+        case Neq
+        then have a1:"\<And>a. (I(x:=a)) y = I y" using val_modify_compat by simp
+        show ?thesis
+          apply (simp add:RGL_fixpt_op_def local.RGL_nml_DVar)
+        proof -
+          from Neq have a:"(\<lambda>a. dual_eff_fn N (RGL_game_sem N (I(x := a)) (RGL_Var y)) ) = (\<lambda>a. dual_eff_fn N (I y))"
+            using RGL_game_sem.simps(3) a1 by presburger
+
+          have "(\<lambda>a. dual_eff_fn N (I y)) \<in> monotone_op_of (World N)"
+          proof -
+            from assms(5) is_val_def[of "N" "I"] have "I y \<in> effective_fn_of (World N)" by auto
+            then have a:"dual_eff_fn N (I y)\<in> effective_fn_of (World N)" using effective_dual_effective[of "I y" "N"] assms by auto
+            then show ?thesis by (auto simp add:monotone_op_of_def fun_le_def)
+          qed
+
+          then show "(\<lambda>a. dual_eff_fn N (RGL_game_sem N (I(x := a)) (RGL_Var y))) \<in> monotone_op_of (World N)"
+            using a by simp
+        qed
+      qed
+   qed
+next
+  case (RGL_nml_Test f)
+  then show ?case
+  proof -
+    from RGL_nml_Test.prems(1) RGL_nml_Test.prems(2) 
+next
   case (RGL_Dual g')
   then show ?case
   proof -
