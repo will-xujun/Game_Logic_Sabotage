@@ -259,6 +259,16 @@ lemma RGL_nml_game_induct [case_names RGL_nml_Atm_Game RGL_nml_Var RGL_nml_DVar 
   "
   by (auto simp add:Syntax.RGL_nml_game_RGL_nml_fml.inducts(1))
 
+lemma RGL_nml_fml_induct [case_names RGL_atm RGL_notatm RGL_or RGL_and RGL_mod]:
+  "(\<And>f. P (RGL_Atm_fml f))
+    \<Longrightarrow> (\<And>f. P (RGL_Not (RGL_Atm_fml f)))
+    \<Longrightarrow> (\<And>f1 f2. RGL_nml_fml f1 \<Longrightarrow> P f1 \<Longrightarrow> RGL_nml_fml f2 \<Longrightarrow> P f2 \<Longrightarrow> P (RGL_Or f1 f2))
+    \<Longrightarrow> (\<And>f1 f2. RGL_nml_fml f1 \<Longrightarrow> P f1 \<Longrightarrow> RGL_nml_fml f2 \<Longrightarrow> P f2 \<Longrightarrow> P (RGL_And f1 f2))
+    \<Longrightarrow> (\<And>g f. RGL_nml_game g \<Longrightarrow> RGL_nml_fml f \<Longrightarrow> P f \<Longrightarrow> P (RGL_Mod g f))
+    \<Longrightarrow> (RGL_nml_fml f \<Longrightarrow> P f)
+  "
+  by (auto simp add:Syntax.RGL_nml_game_RGL_nml_fml.inducts(2))
+
 inductive RGL_gm_nodual:: "'c \<Rightarrow> 'c RGL_game \<Rightarrow> bool"
   and RGL_fml_nodual:: "'c \<Rightarrow> 'c RGL_fml \<Rightarrow> bool" where
     RGL_gm_nodual_atm: "(RGL_gm_nodual x) (RGL_Atm_Game a)"
@@ -274,16 +284,19 @@ inductive RGL_gm_nodual:: "'c \<Rightarrow> 'c RGL_game \<Rightarrow> bool"
   | RGL_gm_nodual_DRec_free: "x\<noteq>y \<Longrightarrow> RGL_gm_nodual x g \<Longrightarrow> RGL_gm_nodual x (RGL_DRec y g)"
   | RGL_gm_nodual_DRec_bound: "RGL_gm_nodual x (RGL_DRec x g)"
   | RGL_fml_nodual_atm: "RGL_fml_nodual x (RGL_Atm_fml P)"
+  | RGL_fml_nodual_negatm: "RGL_fml_nodual x (RGL_Not (RGL_Atm_fml P))"
   | RGL_fml_nodual_Or: "RGL_fml_nodual x f1 \<Longrightarrow> RGL_fml_nodual x f2 \<Longrightarrow> RGL_fml_nodual x (RGL_Or f1 f2)"
   | RGL_fml_nodual_And: "RGL_fml_nodual x f1 \<Longrightarrow> RGL_fml_nodual x f2 \<Longrightarrow> RGL_fml_nodual x (RGL_And f1 f2)"
   | RGL_fml_nodual_Mod: "RGL_fml_nodual x f \<Longrightarrow> RGL_gm_nodual x g \<Longrightarrow> RGL_fml_nodual x (RGL_Mod g f)"
 
-lemma RGL_nodual_game_induct:
+lemma RGL_nodual_game_nodual_fml_inducts:
   fixes x::"'c"
     and \<alpha>::"'c RGL_game"
     and f::"'c RGL_fml"
   assumes
-    nd:"RGL_gm_nodual x \<alpha>"
+    nml: "RGL_nml_game \<alpha>"
+    and nml_fml: "RGL_nml_fml f"
+    and nd:"RGL_gm_nodual x \<alpha>"
     and nd_fml:"RGL_fml_nodual x f"
     and atm:"(\<And>a. P x (RGL_Atm_Game a))"
     and var:"(\<And>y. P x (RGL_Var y))"
@@ -298,9 +311,10 @@ lemma RGL_nodual_game_induct:
     and drec_fr:"(\<And>y g. x\<noteq>y \<Longrightarrow> RGL_gm_nodual x g \<Longrightarrow> P x g \<Longrightarrow> P x (RGL_DRec y g))"
     and drec_bd:"(\<And>g. P x (RGL_DRec x g))"
     and atm_fml:"\<And>f. Q x (RGL_Atm_fml f)"
+    and negatm: "\<And>f. Q x (RGL_Not (RGL_Atm_fml f))"
     and or:"\<And>f1 f2. RGL_fml_nodual x f1 \<Longrightarrow> Q x f1 \<Longrightarrow> RGL_fml_nodual x f2 \<Longrightarrow> Q x f2 \<Longrightarrow> Q x (RGL_Or f1 f2)"
     and and_fml:"\<And>f1 f2. RGL_fml_nodual x f1 \<Longrightarrow> Q x f1 \<Longrightarrow> RGL_fml_nodual x f2 \<Longrightarrow> Q x f2 \<Longrightarrow> Q x (RGL_And f1 f2)"
-    and mod:"\<And>g f. RGL_fml_nodual x f \<Longrightarrow> Q x f \<Longrightarrow> RGL_gm_nodual x g \<Longrightarrow> P x g \<Longrightarrow> Q x (RGL_Mod g f)"
+    and mod:"\<And>g f. RGL_fml_nodual x f \<Longrightarrow> Q x f \<Longrightarrow> RGL_gm_nodual x g \<Longrightarrow> Q x (RGL_Mod g f)"
   shows
     "P x \<alpha>"
     "Q x f"
@@ -312,27 +326,31 @@ next
   case (RGL_Var x)
   then show ?case using assms by auto
 next
-  case (RGL_Dual x)
+  case (RGL_Dual g)
   then show ?case sorry
 next
   case (RGL_Test f')
   then show ?case 
-  proof - have a:"RGL_fml_nodual x f'" using RGL_Test.prems(1) apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
+  proof - have a:"RGL_fml_nodual x f'" using RGL_Test.prems(3) apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
     from tst a show ?thesis by auto
   qed
 next
   case (RGL_Choice g1 g2)
   then show ?case 
-  proof - have a:"RGL_gm_nodual x g1" using RGL_Choice.prems(1) apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
-    have b:"RGL_gm_nodual x g2" using RGL_Choice.prems(1) apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
-    from a b choi RGL_Choice.IH assms show ?thesis by blast
+  proof - have a:"RGL_gm_nodual x g1" using RGL_Choice.prems(3) apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
+    have b:"RGL_gm_nodual x g2" using RGL_Choice.prems(3) apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
+    have c:"RGL_nml_game g1" using RGL_Choice.prems(1) apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
+    have d:"RGL_nml_game g2" using RGL_Choice.prems(1) apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
+    from a b choi RGL_Choice.IH assms c d show ?thesis by blast
   qed
 next
   case (RGL_Seq g1 g2)
   then show ?case
-  proof - have a:"RGL_gm_nodual x g1" using RGL_Seq.prems(1) apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
-    have b:"RGL_gm_nodual x g2" using RGL_Seq.prems(1) apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
-    from a b choi RGL_Seq.IH assms show ?thesis by blast
+  proof - have a:"RGL_gm_nodual x g1" using RGL_Seq.prems(3) apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
+    have b:"RGL_gm_nodual x g2" using RGL_Seq.prems(3) apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
+    have c:"RGL_nml_game g1" using RGL_Seq.prems(1) apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
+    have d:"RGL_nml_game g2" using RGL_Seq.prems(1) apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
+    from a b seq RGL_Seq.IH assms c d show ?thesis by blast
   qed
 next
   case (RGL_Rec y g)
@@ -344,19 +362,56 @@ next
     case False
     then show ?thesis
     proof -
-      have a:"RGL_gm_nodual x g" using RGL_Rec.prems(1) apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def
+      have a:"RGL_gm_nodual x g" using RGL_Rec.prems(3) apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def
         using False by auto
-      from a rec_fr[of "y""g"] False assms RGL_Rec.IH show ?thesis by blast
+      from RGL_Rec.prems(1) have b:"RGL_nml_game g" apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
+      from a b rec_fr[of "y""g"] False assms RGL_Rec.IH show ?thesis by blast
     qed
   qed
 next
   case (RGL_Atm_fml x)
   then show ?case using atm_fml by auto
 next
-  case (RGL_Not f)
-  then show ?case sorry
+  case (RGL_Not f')
+  then show ?case 
+  proof (induction rule:RGL_nml_fml_induct)
+    case (RGL_atm f)
+    then show ?case using atm by auto
+  next
+    case (RGL_notatm f)
+    then show ?case using negatm by auto
+  next
+    case (RGL_or f1 f2)
+    then show ?case
+    proof -
+      from RGL_or.prems(5) have a1:"RGL_fml_nodual x f1" apply cases unfolding RGL_And_def by auto
+      from RGL_or.prems(3) have b1:"RGL_nml_fml f1" apply cases unfolding RGL_And_def by auto
+      from RGL_or.prems(5) have a2:"RGL_fml_nodual x f2" apply cases unfolding RGL_And_def by auto
+      from RGL_or.prems(3) have b2:"RGL_nml_fml f2" apply cases unfolding RGL_And_def by auto
+      from a1 b1 RGL_Not.IH RGL_or.IH(1) assms RGL_or.prems have c1:"Q x f1" by blast
+      from a2 b2 RGL_Not.IH RGL_or.IH(2) assms RGL_or.prems have c2:"Q x f2" by blast
+      show ?thesis using c1 c2 or a1 a2 by auto
+    qed
+  next
+    case (RGL_and f1 f2)
+    then show ?case
+    proof -
+      from RGL_and.prems(5) have a1:"RGL_fml_nodual x f1" apply cases unfolding RGL_And_def by auto
+      from RGL_and.prems(3) have b1:"RGL_nml_fml f1" apply cases unfolding RGL_And_def by auto
+      from RGL_and.prems(5) have a2:"RGL_fml_nodual x f2" apply cases unfolding RGL_And_def by auto
+      from RGL_and.prems(3) have b2:"RGL_nml_fml f2" apply cases unfolding RGL_And_def by auto
+      from a1 b1 RGL_Not.IH RGL_and.IH(1) assms RGL_and.prems have c1:"Q x f1" by blast
+      from a2 b2 RGL_Not.IH RGL_and.IH(2) assms RGL_and.prems have c2:"Q x f2" by blast
+      show ?thesis using c1 c2 and_fml a1 a2 by auto
+    qed
+  next
+    case (RGL_mod g f)
+    then show ?case sorry
+  next
+    show "RGL_nml_fml (RGL_Not f')" using RGL_Not.prems by simp
+  qed
 next
-  case (RGL_Or x1 x2)
+  case (RGL_Or f1 f2)
   then show ?case sorry
 next
   case (RGL_Mod x1 x2)
