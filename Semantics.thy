@@ -984,11 +984,11 @@ lemma RGL_fixpt_op_mono:
     and I:: "RGL_var_type val"
     and x:: "RGL_var_type"
     and h:: "RGL_var_type RGL_game"
-  assumes "RGL_game_valid g" and "g = RGL_Rec x h" and "RGL_nml_game h" and "is_nbd_struct N" and "is_val N I"
+  assumes "RGL_gm_nodual x h" and "is_nbd_struct N" and "is_val N I"
   shows "RGL_fixpt_op N I x h \<in> monotone_op_of (World N)"
   using assms
-proof (induction h arbitrary:x rule: RGL_nml_game_induct)
-  case (RGL_nml_Atm_Game a)
+proof (induction h rule: RGL_gm_nodual_induct[where ?x="x"])
+  case (atm a)
   then show ?case 
   proof (cases a)
     case (Agl_gm x1)
@@ -1002,32 +1002,31 @@ proof (induction h arbitrary:x rule: RGL_nml_game_induct)
       by (simp add:RGL_fixpt_op_def is_nbd_struct_def monotone_op_of_def fun_le_def effective_fn_of_def carrier_of_def)
   qed
 next
-  case (RGL_nml_Var y)
+  case (var y)
   then show ?case
-    using assms(5) by (auto simp add:RGL_fixpt_op_def is_val_def monotone_op_of_def fun_le_def)
+    using assms by (auto simp add:RGL_fixpt_op_def is_val_def monotone_op_of_def fun_le_def)
 next
-  case (RGL_nml_DVar y)
+  case (dvar y)
   then show ?case
   proof -
     consider (Eq) "x=y" | (Neq) "x\<noteq>y" by auto
       then show ?thesis
       proof cases
         case Eq
-          from RGL_nml_DVar.prems(1) RGL_nml_DVar.prems(2) have "RGL_even_dual True x (RGL_Dual (RGL_Var y))" by (auto simp add:RGL_game_valid_def RGL_Rec_valid_def)
-          from this local.RGL_nml_DVar Eq have False by auto 
-          then show ?thesis by simp
-      next
+        from dvar(1) Eq have False apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
+        then show ?thesis by simp
+        next
         case Neq
         then have a1:"\<And>a. (I(x:=a)) y = I y" using val_modify_compat by simp
         show ?thesis
-          apply (simp add:RGL_fixpt_op_def local.RGL_nml_DVar)
+          apply (simp add:RGL_fixpt_op_def local.dvar)
         proof -
           from Neq have a:"(\<lambda>a. dual_eff_fn N (RGL_game_sem N (I(x := a)) (RGL_Var y)) ) = (\<lambda>a. dual_eff_fn N (I y))"
             using RGL_game_sem.simps(3) a1 by presburger
 
           have "(\<lambda>a. dual_eff_fn N (I y)) \<in> monotone_op_of (World N)"
           proof -
-            from assms(5) is_val_def[of "N" "I"] have "I y \<in> effective_fn_of (World N)" by auto
+            from assms(3) is_val_def[of "N" "I"] have "I y \<in> effective_fn_of (World N)" by auto
             then have a:"dual_eff_fn N (I y)\<in> effective_fn_of (World N)" using effective_dual_effective[of "I y" "N"] assms by auto
             then show ?thesis by (auto simp add:monotone_op_of_def fun_le_def)
           qed
@@ -1038,98 +1037,31 @@ next
       qed
    qed
 next
-  case (RGL_nml_Test f)
+  case (tst f)
   then show ?case
-  proof -
-    from RGL_nml_Test.prems(1) RGL_nml_Test.prems(2) 
-next
-  case (RGL_Dual g')
-  then show ?case
-  proof -
-    assume "RGL_nml_game (RGL_Dual g')" then show ?case
-    proof cases
-      case (RGL_nml_DVar y)
-      consider (Eq) "x=y" | (Neq) "x\<noteq>y" by auto
-      then show ?thesis
-      proof cases
-        case Eq
-          from RGL_Dual.prems(1) RGL_Dual.prems(2) have "RGL_even_dual True x (RGL_Dual g')" by (simp add:RGL_game_valid_def RGL_Rec_valid_def)
-          from this local.RGL_nml_DVar Eq have False by auto 
-          then show ?thesis by simp
-      next
-        case Neq
-        then have a1:"\<And>a. (I(x:=a)) y = I y" using val_modify_compat by simp
-        show ?thesis
-          apply (simp add:RGL_fixpt_op_def local.RGL_nml_DVar)
-        proof -
-          from Neq have a:"(\<lambda>a. dual_eff_fn N (RGL_game_sem N (I(x := a)) (RGL_Var y)) ) = (\<lambda>a. dual_eff_fn N (I y))"
-            using RGL_game_sem.simps(3) a1 by presburger
-
-          have "(\<lambda>a. dual_eff_fn N (I y)) \<in> monotone_op_of (World N)"
-          proof -
-            from assms(5) is_val_def[of "N" "I"] have "I y \<in> effective_fn_of (World N)" by auto
-            then have a:"dual_eff_fn N (I y)\<in> effective_fn_of (World N)" using effective_dual_effective[of "I y" "N"] assms by auto
-            then show ?thesis by (auto simp add:monotone_op_of_def fun_le_def)
-          qed
-
-          then show "(\<lambda>a. dual_eff_fn N (RGL_game_sem N (I(x := a)) (RGL_Var y))) \<in> monotone_op_of (World N)"
-            using a by simp
-        qed
-      qed
-    next
-      case (RGL_nml_DTest f)
-      then show ?thesis 
-      proof -
-        have a1:"g' = RGL_Test f" using local.RGL_nml_DTest(1) unfolding RGL_DTest_def by auto
-        have a2:"RGL_fml_closed f" using local.RGL_nml_DTest by simp
-        show ?thesis unfolding RGL_DTest_def RGL_fixpt_op_def monotone_op_of_def apply (simp add:a1)
-        proof (auto)
-          fix y assume a:"y \<in> effective_fn_of (World N)"
-          have "RGL_game_sem N (I(x := y)) (RGL_Test f) \<in> effective_fn_of (World N)" using RGL_sem_wd(2)[of "N" "I(x := y)"] 
-              assms val_modify_val[of "y""N""I""x"] a by auto
-          then show "dual_eff_fn N (RGL_game_sem N (I(x := y)) (RGL_Test f)) \<in> effective_fn_of (World N)"
-            using effective_dual_effective[of "RGL_game_sem N (I(x := y)) (RGL_Test f)" "N"] assms by auto
-        next
-          from a2 have "RGL_game_closed (RGL_Test f)" by (auto simp add:RGL_game_closed_def RGL_fml_closed_def)
-          then have a:"\<And> g1 g2. RGL_game_sem N (I(x := g1)) (RGL_Test f) = RGL_game_sem N (I(x := g2)) (RGL_Test f)"
-            using RGL_closed_sem_uniform(2)[of "RGL_Test f"] by auto
-          fix g1 g2 assume "g1 \<in> effective_fn_of (World N)" and "g2 \<in> effective_fn_of (World N)" and "fun_le g1 g2"
-          from a have "RGL_game_sem N (I(x := g1)) (RGL_Test f) = RGL_game_sem N (I(x := g2)) (RGL_Test f)" by auto
-          then show "fun_le (dual_eff_fn N (RGL_game_sem N (I(x := g1)) (RGL_Test f))) (dual_eff_fn N (RGL_game_sem N (I(x := g2)) (RGL_Test f)))"
-            unfolding fun_le_def by auto
-        qed
-      qed
-    next
-      case (RGL_nml_DChoice g1 g2)
-      then show ?thesis sorry
-  \<comment>\<open>
-      unfolding RGL_fixpt_op_def
-      proof (auto simp add:monotone_op_of_def)
-        fix y assume a:"y \<in> effective_fn_of (World N)" show "RGL_game_sem N (I(x := y)) (RGL_DChoice g1 g2) \<in> effective_fn_of (World N)"
-          using assms RGL_sem_wd(2) val_modify_val a by blast
-
-        fix f1 f2 assume "f1 \<in> effective_fn_of (World N)" and "f2 \<in> effective_fn_of (World N)" and "fun_le f1 f2"
-        show "fun_le (RGL_game_sem N (I(x := f1)) (RGL_DChoice g1 g2)) (RGL_game_sem N (I(x := f2)) (RGL_DChoice g1 g2))"
-          
-      qed
-\<close>
-    next
-      case (RGL_nml_DRec x g)
-      then show ?thesis sorry
-    qed
+    thm RGL_fml.induct
+  proof (induction f rule:)
   qed
 next
-  case (RGL_Test f)
+  case (dtst f)
   then show ?case sorry
 next
-  case (RGL_Choice g1 g2)
+  case (choi g1 g2)
   then show ?case sorry
 next
-  case (RGL_Seq g1 g2)
+  case (dchoi g1 g2)
   then show ?case sorry
 next
-  case (RGL_Rec x g)
+  case (seq g1 g2)
   then show ?case sorry
+next
+  case (rec g y)
+  then show ?case sorry
+next
+  case (drec g y)
+  then show ?case sorry
+next
+  show "RGL_gm_nodual x h" using assms by simp
 qed
 
 
