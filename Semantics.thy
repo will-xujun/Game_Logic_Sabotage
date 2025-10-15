@@ -1037,17 +1037,58 @@ next
       qed
    qed
 next
-  case (tst f)
+  case (tst f) (* h = RGL_Test f. Then interpretation does not depend on x. *)
   then show ?case
-    thm RGL_fml.induct
-  proof (induction f rule:)
+    unfolding monotone_op_of_def RGL_fixpt_op_def apply auto
+  proof -
+    from tst.prems(1) have "RGL_fml_closed f" apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
+    then have "\<And> N I J. RGL_fml_sem N I f = RGL_fml_sem N J f" using RGL_closed_sem_uniform by auto
+    fix xa assume a:"xa \<in> effective_fn_of (World N)"
+    have "(\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (I(x := xa)) f \<inter> a else undefined) = RGL_game_sem N (I(x:=xa)) (RGL_Test f)" by auto
+    then show "(\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (I(x := xa)) f \<inter> a else undefined) \<in> effective_fn_of (World N)" 
+      using a RGL_sem_wd(2)[of "N""I(x:=xa)""RGL_Test f"] val_modify_val[of "xa""N""I""x"]  assms(2) assms(3) by auto
+  next
+    fix g1 g2 
+    from tst.prems(1) have a:"RGL_fml_closed f" apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
+    from RGL_closed_sem_uniform(1)[of "f""N""I(x:=g1)""I(x:=g2)"] a
+    show "fun_le (\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (I(x := g1)) f \<inter> a else undefined) (\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (I(x := g2)) f \<inter> a else undefined)"
+      unfolding fun_le_def by auto
   qed
 next
-  case (dtst f)
-  then show ?case sorry
+  case (dtst f) 
+  then show ?case unfolding monotone_op_of_def RGL_fixpt_op_def RGL_DTest_def apply auto
+  proof -
+    from dtst.prems(1) have "RGL_fml_closed f" apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
+    then have "\<And> N I J. RGL_fml_sem N I f = RGL_fml_sem N J f" using RGL_closed_sem_uniform by auto
+    fix xa assume a:"xa \<in> effective_fn_of (World N)"
+    then show "dual_eff_fn N (RGL_game_sem N (I(x := xa)) (RGL_Test f)) \<in> effective_fn_of (World N)"
+      using a RGL_sem_wd(2)[of "N""I(x:=xa)""RGL_Test f"] val_modify_val[of "xa""N""I""x"]  assms(2) assms(3) by auto
+  next
+    fix g1 g2 
+    from dtst.prems(1) have a:"RGL_fml_closed f" apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
+    from RGL_closed_sem_uniform(1)[of "f""N""I(x:=g1)""I(x:=g2)"] a
+    have b1:"RGL_game_sem N (I(x := g1)) (RGL_Test f) = (\<lambda>a. if a \<subseteq> (World N) then (RGL_fml_sem N (I(x := g1)) f) \<inter> a else undefined)" by auto
+    have b2:"RGL_game_sem N (I(x := g2)) (RGL_Test f) = (\<lambda>a. if a \<subseteq> (World N) then (RGL_fml_sem N (I(x := g2)) f) \<inter> a else undefined)" by auto
+    show "fun_le (dual_eff_fn N (RGL_game_sem N (I(x := g1)) (RGL_Test f))) (dual_eff_fn N (RGL_game_sem N (I(x := g2)) (RGL_Test f)))"
+      unfolding fun_le_def using b1 b2 RGL_closed_sem_uniform(1)[of "f" "N" "I(x:=g1)" "I(x:=g2)"] a
+    by (metis subset_iff_psubset_eq)
+  qed
 next
   case (choi g1 g2)
-  then show ?case sorry
+  then show ?case unfolding RGL_fixpt_op_def monotone_op_of_def apply auto
+  proof -
+    fix xa assume a0:"xa \<in> effective_fn_of (World N)"
+    have b1:"RGL_game_sem N (I(x := xa)) g1 \<in> effective_fn_of (World N)" 
+      using a0 RGL_sem_wd(2)[of "N""I(x:=xa)"] assms(2) assms(3) val_modify_val[of "xa" "N" "I" "x"] by auto
+    have b2:"RGL_game_sem N (I(x := xa)) g2 \<in> effective_fn_of (World N)" 
+      using a0 RGL_sem_wd(2)[of "N""I(x:=xa)"] assms(2) assms(3) val_modify_val[of "xa" "N" "I" "x"] by auto
+    from b1 b2 show "(\<lambda>a. RGL_game_sem N (I(x := xa)) g1 a \<union> RGL_game_sem N (I(x := xa)) g2 a) \<in> effective_fn_of (World N)"
+      using eff_union_eff[of "RGL_game_sem N (I(x := xa)) g1" "World N" "RGL_game_sem N (I(x := xa)) g2"] by auto
+  next
+    fix x1 x2 assume "fun_le x1 x2" and "x1 \<in> effective_fn_of (World N)" and "x2 \<in> effective_fn_of (World N)"
+    
+    show "fun_le (\<lambda>a. RGL_game_sem N (I(x := x1)) g1 a \<union> RGL_game_sem N (I(x := x1)) g2 a) (\<lambda>a. RGL_game_sem N (I(x := x2)) g1 a \<union> RGL_game_sem N (I(x := x2)) g2 a)"
+  qed
 next
   case (dchoi g1 g2)
   then show ?case sorry

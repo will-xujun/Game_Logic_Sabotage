@@ -241,8 +241,8 @@ inductive RGL_nml_game:: "'c RGL_game \<Rightarrow> bool"
     RGL_nml_Atm_game: "RGL_nml_game (RGL_Atm_Game a)"
   | RGL_nml_Var: "RGL_nml_game (RGL_Var x)"
   | RGL_nml_DVar: "RGL_nml_game (RGL_Dual (RGL_Var x))"
-  | RGL_nml_Test: "RGL_nml_fml f \<Longrightarrow>  RGL_nml_game (RGL_Test f)"
-  | RGL_nml_DTest: "RGL_nml_fml f \<Longrightarrow> RGL_nml_game (RGL_DTest f)"
+  | RGL_nml_Test: "RGL_nml_fml f \<Longrightarrow>  RGL_fml_closed f \<Longrightarrow> RGL_nml_game (RGL_Test f)"
+  | RGL_nml_DTest: "RGL_nml_fml f \<Longrightarrow> RGL_fml_closed f \<Longrightarrow> RGL_nml_game (RGL_DTest f)"
   | RGL_nml_Choice: "RGL_nml_game g1 \<Longrightarrow> RGL_nml_game g2 \<Longrightarrow> RGL_nml_game (RGL_Choice g1 g2)"
   | RGL_nml_DChoice: "RGL_nml_game g1 \<Longrightarrow> RGL_nml_game g2 \<Longrightarrow> RGL_nml_game (RGL_DChoice g1 g2)"
   | RGL_nml_Seq: "RGL_nml_game g1 \<Longrightarrow> RGL_nml_game g2 \<Longrightarrow> RGL_nml_game (RGL_Seq g1 g2)"
@@ -325,8 +325,8 @@ inductive RGL_gm_nodual:: "'c \<Rightarrow> 'c RGL_game \<Rightarrow> bool"
     RGL_gm_nodual_atm: "(RGL_gm_nodual x) (RGL_Atm_Game a)"
   | RGL_gm_nodual_Var: "(RGL_gm_nodual x) (RGL_Var y)"
   | RGL_gm_nodual_DVar: "x\<noteq>y \<Longrightarrow> RGL_gm_nodual x (RGL_Dual (RGL_Var y))"
-  | RGL_gm_nodual_Test: "RGL_fml_nodual x f \<Longrightarrow> RGL_gm_nodual x (RGL_Test f)"
-  | RGL_gm_nodual_DTest: "RGL_fml_nodual x f \<Longrightarrow> RGL_gm_nodual x (RGL_DTest f)"
+  | RGL_gm_nodual_Test: "RGL_fml_nodual x f \<Longrightarrow> RGL_fml_closed f \<Longrightarrow> RGL_gm_nodual x (RGL_Test f)"
+  | RGL_gm_nodual_DTest: "RGL_fml_nodual x f \<Longrightarrow> RGL_fml_closed f \<Longrightarrow> RGL_gm_nodual x (RGL_DTest f)"
   | RGL_gm_nodual_Choice: "RGL_gm_nodual x g1 \<Longrightarrow> RGL_gm_nodual x g2 \<Longrightarrow> RGL_gm_nodual x (RGL_Choice g1 g2)"
   | RGL_gm_nodual_DChoice: "RGL_gm_nodual x g1 \<Longrightarrow> RGL_gm_nodual x g2 \<Longrightarrow> RGL_gm_nodual x (RGL_DChoice g1 g2)"
   | RGL_gm_nodual_Seq: "RGL_gm_nodual x g1 \<Longrightarrow> RGL_gm_nodual x g2 \<Longrightarrow> RGL_gm_nodual x (RGL_Seq g1 g2)"
@@ -343,9 +343,10 @@ lemma RGL_fml_nodual_induct [case_names atm negatm or_f and_f mod_f]:
     \<Longrightarrow> (\<And> f. P (RGL_Not (RGL_Atm_fml f)))
     \<Longrightarrow> (\<And> f1 f2. RGL_fml_nodual x f1 \<Longrightarrow> P f1 \<Longrightarrow> RGL_fml_nodual x f2 \<Longrightarrow> P f2\<Longrightarrow> P (RGL_Or f1 f2))
     \<Longrightarrow> (\<And> f1 f2. RGL_fml_nodual x f1 \<Longrightarrow> P f1 \<Longrightarrow> RGL_fml_nodual x f2 \<Longrightarrow> P f2\<Longrightarrow> P (RGL_And f1 f2))
-    \<Longrightarrow> (\<And> g f. RGL_fml_nodual x g \<Longrightarrow> RGL_fml_nodual x f \<Longrightarrow> P f \<Longrightarrow> P (RGL_Or f1 f2))
+    \<Longrightarrow> (\<And> g f. RGL_gm_nodual x g \<Longrightarrow> RGL_fml_nodual x f \<Longrightarrow> P f \<Longrightarrow> P (RGL_Mod g f))
+    \<Longrightarrow> (RGL_fml_nodual x f \<Longrightarrow> P f)
   "
-
+  by (auto simp add:Syntax.RGL_gm_nodual_RGL_fml_nodual.inducts(2))
 
 lemma RGL_gm_nodual_induct [case_names atm var dvar tst dtst choi dchoi seq rec drec]:
   "(\<And> a. P (RGL_Atm_Game a))
@@ -362,6 +363,7 @@ lemma RGL_gm_nodual_induct [case_names atm var dvar tst dtst choi dchoi seq rec 
   "
   using RGL_gm_nodual_RGL_fml_nodual.inducts(1)[where ?x="x" and ?x1.0="g" and ?P1.0="P" and ?P2.0="\<lambda>x. True"] by auto
 
+
 (* If a formula has no dual for any variable, then it is normal. This follows because we constructed 
     RGL_nodual and RGL_nml in accordance to normality.
    This enables us to use conclusions from normality in inductive proofs involving nodual. *)
@@ -375,9 +377,9 @@ next
 next
   fix y show "x \<noteq> y \<Longrightarrow> RGL_nml_game (RGL_Dual (RGL_Var y))" using RGL_nml_DVar[of "y"] by auto
 next
-  fix f1 show "RGL_fml_nodual x f1 \<Longrightarrow> RGL_nml_fml f1 \<Longrightarrow> RGL_nml_game (RGL_Test f1)" using RGL_nml_Test[of "f1"] by auto
+  fix f1 show "RGL_fml_nodual x f1 \<Longrightarrow> RGL_nml_fml f1 \<Longrightarrow> RGL_fml_closed f1 \<Longrightarrow> RGL_nml_game (RGL_Test f1)" using RGL_nml_Test[of "f1"] by auto
 next
-  fix f1 show "RGL_fml_nodual x f1 \<Longrightarrow> RGL_nml_fml f1 \<Longrightarrow> RGL_nml_game (RGL_DTest f1)" using RGL_nml_DTest[of "f1"] by auto
+  fix f1 show "RGL_fml_nodual x f1 \<Longrightarrow> RGL_nml_fml f1 \<Longrightarrow> RGL_fml_closed f1 \<Longrightarrow> RGL_nml_game (RGL_DTest f1)" using RGL_nml_DTest[of "f1"] by auto
 next
   fix g1 g2 show "RGL_gm_nodual x g1 \<Longrightarrow> RGL_nml_game g1 \<Longrightarrow> RGL_gm_nodual x g2 \<Longrightarrow> RGL_nml_game g2 \<Longrightarrow> RGL_nml_game (RGL_Choice g1 g2)"
     using RGL_nml_Choice[of "g1""g2"] by auto
