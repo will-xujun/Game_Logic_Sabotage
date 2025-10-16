@@ -19,6 +19,9 @@ definition compo :: "'a set \<Rightarrow> ('b \<Rightarrow> 'c) \<Rightarrow> ('
 lemma extension_union_extension: "f\<in> extension A\<Longrightarrow> g\<in> extension A \<Longrightarrow> (\<lambda>x. f x \<union> g x) \<in> extension A"
   by (simp add:extension_def)
 
+lemma extension_inter_extension: "f\<in> extension A \<Longrightarrow> g\<in> extension A \<Longrightarrow> (\<lambda>x. f x \<inter> g x) \<in> extension A"
+  by (simp add:extension_def)
+
 lemma extension_compo_extension: "f\<in> extension A\<Longrightarrow> g \<in> extension A \<Longrightarrow> compo A g f \<in> extension A"
   by (simp add:compo_def extension_def)
 
@@ -40,6 +43,9 @@ lemma carrier_compo_carrier: "f\<in> carrier_of A \<Longrightarrow> g\<in> carri
 lemma carrier_union_carrier: "f\<in> carrier_of A \<Longrightarrow> g\<in> carrier_of A \<Longrightarrow> (\<lambda>x. f x \<union> g x) \<in> carrier_of A"
   using extension_union_extension by (auto simp add:carrier_of_def)
 
+lemma carrier_inter_carrier: "f\<in>carrier_of A \<Longrightarrow> g\<in> carrier_of A \<Longrightarrow> (\<lambda>x. f x \<inter> g x) \<in> carrier_of A"
+  using extension_inter_extension by (auto simp add:carrier_of_def)
+
 definition mono_of :: "'a set \<Rightarrow> ('a set \<Rightarrow> 'a set) set" where
   "mono_of A = {f.  \<forall>x y. x\<subseteq>A \<and> y\<subseteq>A \<and> x \<subseteq> y \<longrightarrow> f x \<subseteq> f y}"
 
@@ -54,12 +60,24 @@ lemma mono_union_mono: "f\<in> mono_of A \<Longrightarrow> g\<in> mono_of A \<Lo
   apply (simp add:mono_of_def)
   by (simp add: sup.coboundedI1 sup.coboundedI2)
 
+lemma mono_inter_mono: "f\<in> mono_of A \<Longrightarrow> g\<in> mono_of A \<Longrightarrow> (\<lambda>x. f x \<inter> g x) \<in> mono_of A"
+  apply (simp add:mono_of_def)
+  by (simp add: inf.coboundedI1 inf.coboundedI2)
+
 lemma eff_compo_eff: "f\<in> effective_fn_of A \<Longrightarrow> g\<in>effective_fn_of A \<Longrightarrow> compo (Pow A) g f \<in> effective_fn_of A"
   using eff_compo_mono carrier_compo_carrier apply (auto simp add:effective_fn_of_def)
   by force
 
 lemma eff_union_eff: "f\<in> effective_fn_of A \<Longrightarrow> g\<in>effective_fn_of A \<Longrightarrow> (\<lambda>x. f x \<union> g x) \<in> effective_fn_of A"
   using carrier_union_carrier mono_union_mono by (auto simp add:effective_fn_of_def)
+
+lemma eff_inter_eff: "f\<in> effective_fn_of A \<Longrightarrow> g\<in>effective_fn_of A \<Longrightarrow> (\<lambda>x. f x \<inter> g x) \<in> effective_fn_of A"
+  using carrier_inter_carrier mono_inter_mono by (auto simp add:effective_fn_of_def)
+
+lemma compo_preserve_fun_le: "f1\<in> effective_fn_of A \<Longrightarrow> f2\<in> effective_fn_of A \<Longrightarrow> g1\<in> effective_fn_of A \<Longrightarrow> g2 \<in> effective_fn_of A \<Longrightarrow> fun_le f1 f2 \<Longrightarrow> fun_le g1 g2 \<Longrightarrow> fun_le (compo (Pow A) g1 f1) (compo (Pow A) g2 f2)"
+  unfolding compo_def fun_le_def effective_fn_of_def carrier_of_def mono_of_def extension_def
+  by (smt (verit, ccfv_threshold) Int_iff PiE Pow_iff mem_Collect_eq restrict_apply subsetD subsetI)
+
 
 definition monotone_op_of ::"'a set \<Rightarrow> ( ('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set) ) set" where
   "monotone_op_of A = (effective_fn_of A \<rightarrow> effective_fn_of A)

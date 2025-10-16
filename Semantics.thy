@@ -1085,16 +1085,64 @@ next
     from b1 b2 show "(\<lambda>a. RGL_game_sem N (I(x := xa)) g1 a \<union> RGL_game_sem N (I(x := xa)) g2 a) \<in> effective_fn_of (World N)"
       using eff_union_eff[of "RGL_game_sem N (I(x := xa)) g1" "World N" "RGL_game_sem N (I(x := xa)) g2"] by auto
   next
-    fix x1 x2 assume "fun_le x1 x2" and "x1 \<in> effective_fn_of (World N)" and "x2 \<in> effective_fn_of (World N)"
-    
+    fix x1 x2 assume a:"fun_le x1 x2" and a1:"x1 \<in> effective_fn_of (World N)" and a2:"x2 \<in> effective_fn_of (World N)"
+    and b1:"\<forall>g1a\<in>effective_fn_of (World N). \<forall>g2\<in>effective_fn_of (World N). fun_le g1a g2 \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1a)) g1) (RGL_game_sem N (I(x := g2)) g1)"
+    and b2:"\<forall>g1\<in>effective_fn_of (World N). \<forall>g2a\<in>effective_fn_of (World N). fun_le g1 g2a \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1)) g2) (RGL_game_sem N (I(x := g2a)) g2)"
+
+    from a b1 a1 a2 have c1:"fun_le (RGL_game_sem N (I(x := x1)) g1) (RGL_game_sem N (I(x := x2)) g1)" by auto
+    from a b2 a1 a2 have c2:"fun_le (RGL_game_sem N (I(x := x1)) g2) (RGL_game_sem N (I(x := x2)) g2)" by auto
+
+    from c1 c2
     show "fun_le (\<lambda>a. RGL_game_sem N (I(x := x1)) g1 a \<union> RGL_game_sem N (I(x := x1)) g2 a) (\<lambda>a. RGL_game_sem N (I(x := x2)) g1 a \<union> RGL_game_sem N (I(x := x2)) g2 a)"
+      unfolding fun_le_def by force
   qed
 next
   case (dchoi g1 g2)
-  then show ?case sorry
+  then show ?case unfolding RGL_fixpt_op_def monotone_op_of_def apply auto
+  proof -
+    fix xa assume a0:"xa \<in> effective_fn_of (World N)"
+    show "RGL_game_sem N (I(x := xa)) (RGL_DChoice g1 g2) \<in> effective_fn_of (World N)" 
+      using RGL_sem_wd(2)[of "N""I(x:=xa)" "RGL_DChoice g1 g2"] val_modify_val[of "xa""N""I""x"] assms(2) assms(3) a0 by auto
+  next
+    fix x1 x2 assume a:"fun_le x1 x2" and a1:"x1 \<in> effective_fn_of (World N)" and a2:"x2 \<in> effective_fn_of (World N)"
+    and b1:"\<forall>g1a\<in>effective_fn_of (World N). \<forall>g2\<in>effective_fn_of (World N). fun_le g1a g2 \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1a)) g1) (RGL_game_sem N (I(x := g2)) g1)"
+    and b2:"\<forall>g1\<in>effective_fn_of (World N). \<forall>g2a\<in>effective_fn_of (World N). fun_le g1 g2a \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1)) g2) (RGL_game_sem N (I(x := g2a)) g2)"
+
+    from a b1 a1 a2 have c1:"fun_le (RGL_game_sem N (I(x := x1)) g1) (RGL_game_sem N (I(x := x2)) g1)" by auto
+    from a b2 a1 a2 have c2:"fun_le (RGL_game_sem N (I(x := x1)) g2) (RGL_game_sem N (I(x := x2)) g2)" by auto
+
+    from c1 c2
+    show "fun_le (RGL_game_sem N (I(x := x1)) (RGL_DChoice g1 g2)) (RGL_game_sem N (I(x := x2)) (RGL_DChoice g1 g2))"
+      unfolding fun_le_def using RGL_DChoice_sem[of "N"] val_modify_val[where N="N"] a1 a2 assms(2) assms(3) by force
+  qed
 next
   case (seq g1 g2)
-  then show ?case sorry
+  then show ?case unfolding RGL_fixpt_op_def monotone_op_of_def apply auto
+  proof -
+    fix xa assume a0:"xa \<in> effective_fn_of (World N)"
+    have a1:"RGL_game_sem N (I(x := xa)) g1 \<in> effective_fn_of (World N)" using a0 RGL_sem_wd assms(2) assms(3) val_modify_val by force
+    have a2:"RGL_game_sem N (I(x := xa)) g2 \<in> effective_fn_of (World N)" using a0 RGL_sem_wd assms(2) assms(3) val_modify_val by force    
+    show "compo (Pow (World N)) (RGL_game_sem N (I(x := xa)) g2) (RGL_game_sem N (I(x := xa)) g1) \<in> effective_fn_of (World N)"
+      using eff_compo_eff[of "RGL_game_sem N (I(x := xa)) g1" "World N" "RGL_game_sem N (I(x := xa)) g2"] a1 a2 by auto
+  next
+    fix x1 x2 assume a1:"x1\<in> effective_fn_of (World N)" and a2:"x2\<in> effective_fn_of (World N)" and a:"fun_le x1 x2"
+    and b1:"\<forall>g1a\<in>effective_fn_of (World N). \<forall>g2\<in>effective_fn_of (World N). fun_le g1a g2 \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1a)) g1) (RGL_game_sem N (I(x := g2)) g1)"
+    and b2:"\<forall>g1\<in>effective_fn_of (World N). \<forall>g2a\<in>effective_fn_of (World N). fun_le g1 g2a \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1)) g2) (RGL_game_sem N (I(x := g2a)) g2)"
+
+    from b1 a1 a2 a have c1:"fun_le (RGL_game_sem N (I(x := x1)) g1) (RGL_game_sem N (I(x := x2)) g1)" by auto
+    from b2 a1 a2 a have c2:"fun_le (RGL_game_sem N (I(x := x1)) g2) (RGL_game_sem N (I(x := x2)) g2)" by auto
+
+    have d11:"RGL_game_sem N (I(x := x1)) g1 \<in> effective_fn_of (World N)" 
+      using RGL_sem_wd(2)[of "N" "I(x:=x1)" "g1"] assms(2) assms(3) val_modify_val[of "x1" "N" "I""x"] a1 by auto
+    have d12:"RGL_game_sem N (I(x := x2)) g1 \<in> effective_fn_of (World N)" 
+      using RGL_sem_wd(2)[of "N" "I(x:=x2)" "g1"] assms(2) assms(3) val_modify_val[of "x2" "N" "I""x"] a2 by auto
+    have d21:"RGL_game_sem N (I(x := x1)) g2 \<in> effective_fn_of (World N)" 
+      using RGL_sem_wd(2)[of "N" "I(x:=x1)" "g2"] assms(2) assms(3) val_modify_val[of "x1" "N" "I""x"] a1 by auto
+    have d22:"RGL_game_sem N (I(x := x2)) g2 \<in> effective_fn_of (World N)" 
+      using RGL_sem_wd(2)[of "N" "I(x:=x2)" "g2"] assms(2) assms(3) val_modify_val[of "x2" "N" "I""x"] a2 by auto    
+    show "fun_le (compo (Pow (World N)) (RGL_game_sem N (I(x := x1)) g2) (RGL_game_sem N (I(x := x1)) g1)) (compo (Pow (World N)) (RGL_game_sem N (I(x := x2)) g2) (RGL_game_sem N (I(x := x2)) g1))"
+      using c1 c2 d11 d12 d21 d22 compo_preserve_fun_le by force
+  qed
 next
   case (rec g y)
   then show ?case sorry
