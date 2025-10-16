@@ -791,6 +791,18 @@ next
   then show ?case by (auto simp add:effective_fn_of_def carrier_of_def)
 qed
 
+lemma RGL_Test_sem__fml_compat: 
+  assumes "is_nbd_struct N" and "is_val N I" and "is_val N J"
+  shows "RGL_game_sem N I (RGL_Test f1) = RGL_game_sem N J (RGL_Test f2) \<Longrightarrow> RGL_fml_sem N I f1 = RGL_fml_sem N J f2"
+proof - assume "RGL_game_sem N I (RGL_Test f1) = RGL_game_sem N J (RGL_Test f2)"
+  then have a:"\<And>A. A\<subseteq> World N \<Longrightarrow> (RGL_fml_sem N I f1) \<inter> A = (RGL_fml_sem N J f2) \<inter> A"
+    by (metis RGL_game_sem.simps(5))
+  from RGL_sem_wd(1) assms have a1:"(RGL_fml_sem N I f1)\<subseteq> World N" by auto
+  from RGL_sem_wd(1) assms have a2:"(RGL_fml_sem N J f2)\<subseteq> World N" by auto
+  from a[of "RGL_fml_sem N I f1"] a1 have b1:"RGL_fml_sem N I f1\<subseteq> RGL_fml_sem N J f2" by auto
+  from a[of "RGL_fml_sem N J f2"] a2 have b2:"RGL_fml_sem N J f2\<subseteq> RGL_fml_sem N I f1" by auto
+  from b1 b2 show ?thesis by auto
+qed
 
 lemma RGL_DChoice_sem: 
   assumes "is_nbd_struct N" and "is_val N I"
@@ -816,13 +828,6 @@ next
     show "undefined = RGL_game_sem N I g1 A \<inter> RGL_game_sem N I g2 A" using c1 c2 a by (auto simp add:extension_def)
   qed
 qed
-
-lemma RGL_DRec_sem: assumes "is_nbd_struct N" and "is_val N I"
-  shows "RGL_game_sem N I (RGL_DRec x g) A = Gfp (World N) (\<lambda>u. (RGL_game_sem N (I(x:=u)) g)) A"
-  unfolding RGL_DRec_def apply (simp add:dual_eff_fn_def Gfp_def Lfp_def Gfp_family_def Lfp_family_def)
-
-lemma RGL_atm_interp_uniform [simp]: "RGL_game_sem N I (RGL_Atm_Game x) = RGL_game_sem N J (RGL_Atm_Game x)"
-  by (cases x) (auto)
 
 lemma RGL_var_interp_mono [simp]: assumes "fun_le u v"
   shows "fun_le (RGL_game_sem N (I(x:=u)) (RGL_Var y)) (RGL_game_sem N (I(x:=v)) (RGL_Var y))"
@@ -864,12 +869,12 @@ qed
 lemma RGL_Rec_sem_uniform: "RGL_game_sem N (I(x:=u)) (RGL_Rec x g) = RGL_game_sem N (I(x:=v)) (RGL_Rec x g)"
   by auto
 
-lemma RGL_Rec_sem_local:
+lemma RGL_sem_local:
   "\<forall>x \<in> free_var_game g. I x = J x \<Longrightarrow> RGL_game_sem N I g = RGL_game_sem N J g"
   "\<And>K L. (\<forall>x \<in> free_var f. K x = L x \<Longrightarrow> RGL_fml_sem N K f = RGL_fml_sem N L f)"
 proof (induction g and f arbitrary: I J)
   case (RGL_Atm_Game x)
-  then show ?case by auto
+  then show ?case apply (cases x) by auto
 next
   case (RGL_Var y)
   then show ?case 
@@ -964,22 +969,150 @@ proof -
   assume "RGL_fml_closed f"
   then have "free_var f = {}" by (simp add:RGL_fml_closed_def)
   then have "\<forall>x \<in> free_var f. K x = L x" by simp
-  then show R2:"RGL_fml_sem N K f = RGL_fml_sem N L f" using RGL_Rec_sem_local by simp
+  then show R2:"RGL_fml_sem N K f = RGL_fml_sem N L f" using RGL_sem_local by simp
 next
   assume "RGL_game_closed g"
   then have "free_var_game g = {}" by (simp add:RGL_game_closed_def)
   then have "\<forall>x \<in> free_var_game g. I x = J x" by simp
-  then show "RGL_game_sem N I g = RGL_game_sem N J g" using RGL_Rec_sem_local by simp
+  then show "RGL_game_sem N I g = RGL_game_sem N J g" using RGL_sem_local by simp
 qed
 
 definition RGL_fixpt_op:: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type \<Rightarrow> RGL_var_type RGL_game \<Rightarrow> RGL_eff_fn_type \<Rightarrow> RGL_eff_fn_type" where
   "RGL_fixpt_op N I x g u = RGL_game_sem N (I(x:=u)) g"
 
+lemma RGL_fixpt_op_dual: 
+  assumes "is_nbd_struct N" and "is_val N I" and "u\<in> effective_fn_of (World N)"
+  shows "RGL_game_sem N (I(x:=u)) (RGL_dual_free x g) = RGL_game_sem N (I(x:= dual_eff_fn N u)) g"
+  using assms(2) assms(3)
+proof (induction g arbitrary:I rule: RGL_game_induct_finer)
+  case (RGL_Atm_Game a)
+  then show ?case apply (cases a) by auto
+next
+  case (RGL_Var y)
+  then show ?case
+  proof (cases "x=y")
+    case True
+    then show ?thesis
+    proof (auto)
+      assume a:"x = y"
+      have "RGL_game_sem N (\<lambda>a. if a = y then u else I a) (RGL_Var y) = u" by auto
+      then show "dual_eff_fn N (RGL_game_sem N (\<lambda>a. if a = y then u else I a) (RGL_Var y)) = dual_eff_fn N u" by simp
+    qed
+  next
+    case False
+    then show ?thesis using RGL_sem_local(1)[of "RGL_Var y" "I(x := u)" "I(x := dual_eff_fn N u)" "N"] by auto
+  qed
+next
+  case (RGL_Dual g1)
+  then show ?case by auto
+next
+  case (RGL_Choice g1 g2)
+  then show ?case by auto
+next
+  case (RGL_Seq g1 g2)
+  then show ?case by auto
+next
+  case (RGL_Rec y g)
+  then show ?case
+  proof (cases "x=y")
+    case True
+    then show ?thesis
+    proof -
+      have a:"RGL_dual_free x (RGL_Rec y g) = RGL_Rec y g" using True by auto
+      then have b:"RGL_game_sem N (I(x := u)) (RGL_dual_free x (RGL_Rec y g)) = RGL_game_sem N (I(x:=u)) (RGL_Rec y g)" by auto
+      
+      have "free_var_game (RGL_Rec y g) = free_var_game g - {y}" by auto
+      then have "x\<notin> free_var_game (RGL_Rec y g)" using True by auto
+      then have "\<forall>z\<in> free_var_game (RGL_Rec y g). (I(x:=u)) z = (I(x:= dual_eff_fn N u)) z" by auto
+      then have "RGL_game_sem N (I(x := u)) (RGL_Rec y g) = RGL_game_sem N (I(x := dual_eff_fn N u)) (RGL_Rec y g)" using RGL_sem_local(1)[of "RGL_Rec y g" "I(x := u)" "I(x := dual_eff_fn N u)" "N"] by auto
+      then show ?thesis using b by argo
+    qed
+  next
+    case False
+    then show ?thesis apply auto
+    proof - from False have a1:"\<And>ua. (\<lambda>a. if a = x then u else I a)(y := ua) = (I(y:=ua, x:=u))" by auto
+       from False have a2:"\<And>ua. (\<lambda>a. if a = x then dual_eff_fn N u else I a)(y := ua) = I(y:=ua, x:=dual_eff_fn N u)" by auto
+       from RGL_Rec.IH a1 a2 
+       have "\<And> ua. ua\<in> effective_fn_of (World N) \<Longrightarrow> RGL_game_sem N ((\<lambda>a. if a = x then u else I a)(y := ua)) (RGL_dual_free x g) = RGL_game_sem N ((\<lambda>a. if a = x then dual_eff_fn N u else I a)(y := ua)) g" using RGL_Rec.prems val_modify_val assms(3)
+         by fastforce
+       then have "\<And> a. {\<phi> a |\<phi>. \<phi> \<in> {\<phi> \<in> effective_fn_of (World N). fun_le (RGL_game_sem N ((\<lambda>a. if a = x then u else I a)(y := \<phi>)) (RGL_dual_free x g)) \<phi>}} 
+          = {\<phi> a |\<phi>. \<phi> \<in> {\<phi> \<in> effective_fn_of (World N). fun_le (RGL_game_sem N ((\<lambda>a. if a = x then dual_eff_fn N u else I a)(y := \<phi>)) g) \<phi>}}" by auto
+       then show "Lfp (World N) (\<lambda>ua. RGL_game_sem N ((\<lambda>a. if a = x then u else I a)(y := ua)) (RGL_dual_free x g)) = Lfp (World N) (\<lambda>ua. RGL_game_sem N ((\<lambda>a. if a = x then dual_eff_fn N u else I a)(y := ua)) g)"
+         unfolding Lfp_def Lfp_family_def
+         using ambient_inter_eq[where U="World N"]
+       by presburger
+    qed
+  qed
+next
+  case (RGL_Atm_fml f)
+  then show ?case
+    by (metis RGL_closed_sem_uniform(2) RGL_dual_free.simps(7) RGL_dual_free_fml.simps(1) RGL_game_closed_def free_var.simps(1) free_var_game.simps(4))
+next
+  case (RGL_Not f)
+  then show ?case
+  proof (simp)
+    assume a:"(\<And>I. is_val N I \<Longrightarrow> (\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_dual_free_fml x f) \<inter> a else undefined) = (\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) f \<inter> a else undefined))"
+      and a_val:"is_val N I" and a_u:"u \<in> effective_fn_of (World N)"
+    show "(\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_Not (RGL_dual_free_fml x f)) \<inter> a else undefined) = (\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) (RGL_Not f) \<inter> a else undefined)"
+      apply rule apply simp
+    proof fix s assume b:"s\<subseteq> World N"
+      from a[of "I"] b RGL_Not.prems(1) have b1:"RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_dual_free_fml x f) \<inter> s = RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) f \<inter> s" by meson
+      from b1
+      show "(World N - RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_dual_free_fml x f)) \<inter> s = (World N - RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) f) \<inter> s" by blast
+    qed
+  qed
+next
+  case (RGL_Or f1 f2)
+  then show ?case
+  proof (simp)
+    assume a1:"(\<And>I. is_val N I \<Longrightarrow> (\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_dual_free_fml x f1) \<inter> a else undefined) = (\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) f1 \<inter> a else undefined))"
+      and a2:"(\<And>I. is_val N I \<Longrightarrow> (\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_dual_free_fml x f2) \<inter> a else undefined) = (\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) f2 \<inter> a else undefined))"
+      and a_val:"is_val N I" and a_u:"u \<in> effective_fn_of (World N)"
+    have b_l:"RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_Or (RGL_dual_free_fml x f1) (RGL_dual_free_fml x f2)) = RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_dual_free_fml x f1) \<union> RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_dual_free_fml x f2)" by auto
+    have b_r:"RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) (RGL_Or f1 f2) = RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) (f1) \<union> RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) (f2)" by auto
+
+    show "(\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_Or (RGL_dual_free_fml x f1) (RGL_dual_free_fml x f2)) \<inter> a else undefined) = (\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) (RGL_Or f1 f2) \<inter> a else undefined)"
+      apply rule apply simp
+    proof fix s assume b:"s\<subseteq> World N"
+      from a1[of "I"] RGL_Or.prems(1) have b1:"RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_dual_free_fml x f1) \<inter> s = RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) f1 \<inter> s" using b by meson
+      from a2[of "I"] RGL_Or.prems(1) have b2:"RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_dual_free_fml x f2) \<inter> s = RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) f2 \<inter> s" using b by meson
+      from b1 b2
+      show "(RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_dual_free_fml x f1) \<union> RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_dual_free_fml x f2)) \<inter> s =
+         (RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) f1 \<union> RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) f2) \<inter> s" by blast
+    qed
+  qed
+next
+  case (RGL_Mod g f)
+  then show ?case 
+  proof (simp)
+    assume a_g: "(\<And>I. is_val N I \<Longrightarrow> RGL_game_sem N (\<lambda>a. if a = x then u else I a) (RGL_dual_free x g) = RGL_game_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) g)"
+      and a_f: "(\<And>I. is_val N I \<Longrightarrow> (\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_dual_free_fml x f) \<inter> a else undefined) = (\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) f \<inter> a else undefined))"
+    show "(\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_Mod (RGL_dual_free x g) (RGL_dual_free_fml x f)) \<inter> a else undefined) = (\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) (RGL_Mod g f) \<inter> a else undefined)"
+      apply rule apply simp
+    proof fix s assume a_s:"s\<subseteq> World N"
+      have a:"I(x:=u) = (\<lambda>a. if a = x then u else I a)" by auto
+      have "is_val N (I(x:=u))" using val_modify_val[of "u" "N" "I" "x"] RGL_Mod.prems by auto
+      then have b:"RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_dual_free_fml x f) \<subseteq> World N" 
+        using RGL_sem_wd(1)[of "N""\<lambda>a. if a = x then u else I a" "RGL_dual_free_fml x f"] assms(1) RGL_Mod.prems a by auto
+      
+      from a RGL_Mod.IH(1)[of "\<lambda>a. if a = x then u else I a"] RGL_Mod.prems val_modify_val[of "u" "N" "I" "x"]
+      have a3:"RGL_game_sem N ((\<lambda>a. if a = x then u else I a)(x := u)) (RGL_dual_free x g) = RGL_game_sem N ((\<lambda>a. if a = x then u else I a)(x := dual_eff_fn N u)) g" by fastforce
+
+      have "(\<lambda>a. if a = x then u else I a)(x := u) = (\<lambda>a. if a = x then u else I a)" by auto
+      from RGL_Mod.prems(1) have "RGL_game_sem N (I(x := u)) (RGL_dual_free x (RGL_Test f)) = RGL_game_sem N (I(x := dual_eff_fn N u)) (RGL_Test f)"
+        using RGL_Mod.IH(2) assms(3) by blast
+      then have "RGL_fml_sem N (I(x:=u)) (RGL_dual_free_fml x f) = RGL_fml_sem N (I(x := dual_eff_fn N u)) f" using RGL_Mod.prems val_modify_val[where I="I"]
+        assms(1) by (simp add: RGL_Test_sem__fml_compat)
+      then show "RGL_game_sem N (\<lambda>a. if a = x then u else I a) (RGL_dual_free x g) (RGL_fml_sem N (\<lambda>a. if a = x then u else I a) (RGL_dual_free_fml x f)) \<inter> s =
+         RGL_game_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) g (RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) f) \<inter> s" using a
+      by (smt (verit) RGL_sem_local(1,2) a3 fun_upd_other fun_upd_same)
+    qed
+  qed
+qed
 
 
-\<comment>\<open>lemma 3.5 of paper: If rx.\<alpha> is valid, then u\<rightarrow>N[\<alpha>]^I(x:=u) is monotone.
-  uses induction on normal form.
-\<close>
+(*lemma 3.5 of paper: If rx.\<alpha> is valid, then u\<rightarrow>N[\<alpha>]^I(x:=u) is monotone.
+  uses induction on normal form.*)
 lemma RGL_fixpt_op_mono:
   fixes f:: "RGL_var_type RGL_fml"
     and g:: "RGL_var_type RGL_game"
@@ -1094,10 +1227,10 @@ next
              (\<forall>g1a\<in>effective_fn_of (World N).
                  \<forall>g2\<in>effective_fn_of (World N). fun_le g1a g2 \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1a)) g1) (RGL_game_sem N (I(x := g2)) g1)))"
     and b2:"\<And>I. is_val N I \<Longrightarrow>
-             (\<lambda>a. RGL_game_sem N (I(x := a)) g2) \<in> effective_fn_of (World N) \<rightarrow> effective_fn_of (World N) \<and>
-             (\<forall>g1\<in>effective_fn_of (World N).
-                 \<forall>g2a\<in>effective_fn_of (World N). fun_le g1 g2a \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1)) g2) (RGL_game_sem N (I(x := g2a)) g2))"
-
+             (\<lambda>a. RGL_game_sem N (I(x := a)) g2) \<in> effective_fn_of (World N) \<rightarrow> effective_fn_of (World N) \<and> 
+             (\<forall>g1\<in>effective_fn_of (World N). 
+                \<forall>g2a\<in>effective_fn_of (World N). fun_le g1 g2a \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1)) g2) (RGL_game_sem N (I(x := g2a)) g2))"
+    
     from a b1 a1 a2 choi.prems have c1:"fun_le (RGL_game_sem N (I(x := x1)) g1) (RGL_game_sem N (I(x := x2)) g1)" by auto
     from a b2 a1 a2 choi.prems have c2:"fun_le (RGL_game_sem N (I(x := x1)) g2) (RGL_game_sem N (I(x := x2)) g2)" by auto
 
@@ -1159,7 +1292,8 @@ next
       using RGL_sem_wd(2)[of "N" "I(x:=x2)" "g1"] assms(2) seq.prems val_modify_val[of "x2" "N" "I""x"] a2 by auto
     have d21:"RGL_game_sem N (I(x := x1)) g2 \<in> effective_fn_of (World N)" 
       using RGL_sem_wd(2)[of "N" "I(x:=x1)" "g2"] assms(2) seq.prems val_modify_val[of "x1" "N" "I""x"] a1 by auto
-    have d22:"RGL_game_sem N (I(x := x2)) g2 \<in> effective_fn_of (World N)" 
+    have d22:"RGL_game_sem N (I(x := x2)) g2 \<in> effective_fn_of (Worl
+      using RGL_sem_wd(2)[of "N" "I(x:=x1)" "g2"] assms(2) assms(3) val_modify_val[of "x1" "N" "I""x"] effective_fn_of_def[of "World N"] carrier_of_def[of "World N"] a1 by autod N)" 
       using RGL_sem_wd(2)[of "N" "I(x:=x2)" "g2"] assms(2) seq.prems val_modify_val[of "x2" "N" "I""x"] a2 by auto    
     show "fun_le (compo (Pow (World N)) (RGL_game_sem N (I(x := x1)) g2) (RGL_game_sem N (I(x := x1)) g1)) (compo (Pow (World N)) (RGL_game_sem N (I(x := x2)) g2) (RGL_game_sem N (I(x := x2)) g1))"
       using c1 c2 d11 d12 d21 d22 compo_preserve_fun_le by force

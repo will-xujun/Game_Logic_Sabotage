@@ -94,6 +94,20 @@ lemma RGL_game_induct [case_names RGL_Atm_Game RGL_Var RGL_Dual RGL_Test RGL_Cho
   "
   by (induction rule: RGL_game.induct) (auto)
 
+lemma RGL_game_induct_finer [case_names RGL_Atm_Game RGL_Var RGL_Dual RGL_Choice RGL_Seq RGL_Rec RGL_Atm_fml RGL_Not RGL_Or RGL_Mod]:
+  "(\<And>a. P (RGL_Atm_Game a))
+    \<Longrightarrow> (\<And>x. P (RGL_Var x))
+    \<Longrightarrow> (\<And>g. P g \<Longrightarrow> P (RGL_Dual g))
+    \<Longrightarrow> (\<And>g1 g2. P g1 \<Longrightarrow> P g2 \<Longrightarrow> P (RGL_Choice g1 g2))
+    \<Longrightarrow> (\<And>g1 g2. P g1 \<Longrightarrow> P g2 \<Longrightarrow> P (RGL_Seq g1 g2))
+    \<Longrightarrow> (\<And>x g. P g \<Longrightarrow> P (RGL_Rec x g))
+    \<Longrightarrow> (\<And>f. P (RGL_Test (RGL_Atm_fml f)))
+    \<Longrightarrow> (\<And>f. P (RGL_Test f) \<Longrightarrow> P (RGL_Test (RGL_Not f)))
+    \<Longrightarrow> (\<And>f g. P (RGL_Test f) \<Longrightarrow> P (RGL_Test g) \<Longrightarrow> P (RGL_Test (RGL_Or f g)))
+    \<Longrightarrow> (\<And>g f. P g \<Longrightarrow> P (RGL_Test f) \<Longrightarrow> P (RGL_Test (RGL_Mod g f)))
+    \<Longrightarrow> P \<alpha>
+  "
+  using RGL_game.induct[of "P" "\<lambda>x. P (RGL_Test x)" "\<alpha>"] by fastforce
 
 lemma RGL_fml_induct [case_names Atm Not Or Mod]:
   "(\<And>a. P (RGL_Atm_fml a))

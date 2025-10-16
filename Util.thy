@@ -10,6 +10,9 @@ definition ambient_inter :: "'a set \<Rightarrow> ('a set) set \<Rightarrow> 'a 
 lemma ambient_inter_compat : "F1\<subseteq> F2 \<Longrightarrow> ambient_inter U F2 \<subseteq> ambient_inter U F1"
   unfolding ambient_inter_def by auto
 
+lemma ambient_inter_eq: "F1=F2 \<Longrightarrow> ambient_inter U F1 = ambient_inter U F2"
+  by auto
+
 definition fun_le :: "('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set) \<Rightarrow> bool" where
 "fun_le f g = (\<forall>x. f x \<subseteq> g x)"
 
