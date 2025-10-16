@@ -357,8 +357,8 @@ lemma RGL_gm_nodual_induct [case_names atm var dvar tst dtst choi dchoi seq rec 
     \<Longrightarrow> (\<And> g1 g2. RGL_gm_nodual x g1 \<Longrightarrow> P g1 \<Longrightarrow> RGL_gm_nodual x g2 \<Longrightarrow> P g2 \<Longrightarrow> P (RGL_Choice g1 g2))
     \<Longrightarrow> (\<And> g1 g2. RGL_gm_nodual x g1 \<Longrightarrow> P g1 \<Longrightarrow> RGL_gm_nodual x g2 \<Longrightarrow> P g2 \<Longrightarrow> P (RGL_DChoice g1 g2))
     \<Longrightarrow> (\<And> g1 g2. RGL_gm_nodual x g1 \<Longrightarrow> P g1 \<Longrightarrow> RGL_gm_nodual x g2 \<Longrightarrow> P g2 \<Longrightarrow> P (RGL_Seq g1 g2))
-    \<Longrightarrow> (\<And> g y. RGL_gm_nodual x g \<Longrightarrow> P g \<Longrightarrow> P (RGL_Rec y g))
-    \<Longrightarrow> (\<And> g y. RGL_gm_nodual x g \<Longrightarrow> P g \<Longrightarrow> P (RGL_DRec y g))
+    \<Longrightarrow> (\<And> y g. RGL_gm_nodual x g \<Longrightarrow> P g \<Longrightarrow> P (RGL_Rec y g))
+    \<Longrightarrow> (\<And> y g. RGL_gm_nodual x g \<Longrightarrow> P g \<Longrightarrow> P (RGL_DRec y g))
     \<Longrightarrow> (RGL_gm_nodual x g \<Longrightarrow> P g)
   "
   using RGL_gm_nodual_RGL_fml_nodual.inducts(1)[where ?x="x" and ?x1.0="g" and ?P1.0="P" and ?P2.0="\<lambda>x. True"] by auto

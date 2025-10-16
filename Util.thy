@@ -7,6 +7,9 @@ begin
 definition ambient_inter :: "'a set \<Rightarrow> ('a set) set \<Rightarrow> 'a set" where
 "ambient_inter U F = {x\<in>U. \<forall>A\<in>F. x\<in>A}"
 
+lemma ambient_inter_compat : "F1\<subseteq> F2 \<Longrightarrow> ambient_inter U F2 \<subseteq> ambient_inter U F1"
+  unfolding ambient_inter_def by auto
+
 definition fun_le :: "('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set) \<Rightarrow> bool" where
 "fun_le f g = (\<forall>x. f x \<subseteq> g x)"
 
@@ -90,6 +93,7 @@ definition Lfp_family :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<
 definition Lfp :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set)) \<Rightarrow> ('a set \<Rightarrow> 'a set)" where
   "Lfp w f a = (if a \<subseteq> w then ambient_inter w {\<phi> a | \<phi>. \<phi> \<in> Lfp_family w f} else undefined)"
 
+
 definition max_of :: "'a set \<Rightarrow> ('a set \<Rightarrow> 'a set)" where
   "max_of A x = (if x\<subseteq>A then A else undefined)"
 
@@ -160,10 +164,10 @@ proof
 qed
 
 definition Gfp_family :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set)) \<Rightarrow> ('a set \<Rightarrow> 'a set) set" where
-"Gfp_family A f = {\<phi>. \<phi>\<in> carrier_of A \<and> fun_le \<phi> (f \<phi>)}"
+"Gfp_family A f = {\<phi>. \<phi>\<in> effective_fn_of A \<and> fun_le \<phi> (f \<phi>)}"
 
 definition Gfp :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set)) \<Rightarrow> ('a set \<Rightarrow> 'a set)" where
-  "Gfp w f a = \<Union>{\<phi> a | \<phi>. \<phi>\<in> Gfp_family w f}"
+  "Gfp w f a = (if a\<subseteq>w then \<Union>{\<phi> a | \<phi>. \<phi>\<in> Gfp_family w f} else undefined)"
 
 lemma Lfp_in_carrier : "Lfp w f \<in> carrier_of w"
   apply (auto simp add:carrier_of_def)

@@ -817,6 +817,9 @@ next
   qed
 qed
 
+lemma RGL_DRec_sem: assumes "is_nbd_struct N" and "is_val N I"
+  shows "RGL_game_sem N I (RGL_DRec x g) A = Gfp (World N) (\<lambda>u. (RGL_game_sem N (I(x:=u)) g)) A"
+  unfolding RGL_DRec_def apply (simp add:dual_eff_fn_def Gfp_def Lfp_def Gfp_family_def Lfp_family_def)
 
 lemma RGL_atm_interp_uniform [simp]: "RGL_game_sem N I (RGL_Atm_Game x) = RGL_game_sem N J (RGL_Atm_Game x)"
   by (cases x) (auto)
@@ -987,7 +990,7 @@ lemma RGL_fixpt_op_mono:
   assumes "RGL_gm_nodual x h" and "is_nbd_struct N" and "is_val N I"
   shows "RGL_fixpt_op N I x h \<in> monotone_op_of (World N)"
   using assms
-proof (induction h rule: RGL_gm_nodual_induct[where ?x="x"])
+proof (induction h arbitrary:I rule: RGL_gm_nodual_induct[where ?x="x"])
   case (atm a)
   then show ?case 
   proof (cases a)
@@ -1026,7 +1029,7 @@ next
 
           have "(\<lambda>a. dual_eff_fn N (I y)) \<in> monotone_op_of (World N)"
           proof -
-            from assms(3) is_val_def[of "N" "I"] have "I y \<in> effective_fn_of (World N)" by auto
+            from assms(3) dvar.prems is_val_def[of "N" "I"] have "I y \<in> effective_fn_of (World N)" by auto
             then have a:"dual_eff_fn N (I y)\<in> effective_fn_of (World N)" using effective_dual_effective[of "I y" "N"] assms by auto
             then show ?thesis by (auto simp add:monotone_op_of_def fun_le_def)
           qed
@@ -1046,7 +1049,7 @@ next
     fix xa assume a:"xa \<in> effective_fn_of (World N)"
     have "(\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (I(x := xa)) f \<inter> a else undefined) = RGL_game_sem N (I(x:=xa)) (RGL_Test f)" by auto
     then show "(\<lambda>a. if a \<subseteq> World N then RGL_fml_sem N (I(x := xa)) f \<inter> a else undefined) \<in> effective_fn_of (World N)" 
-      using a RGL_sem_wd(2)[of "N""I(x:=xa)""RGL_Test f"] val_modify_val[of "xa""N""I""x"]  assms(2) assms(3) by auto
+      using a RGL_sem_wd(2)[of "N""I(x:=xa)""RGL_Test f"] val_modify_val[of "xa""N""I""x"]  assms(2) tst.prems by auto
   next
     fix g1 g2 
     from tst.prems(1) have a:"RGL_fml_closed f" apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
@@ -1062,7 +1065,7 @@ next
     then have "\<And> N I J. RGL_fml_sem N I f = RGL_fml_sem N J f" using RGL_closed_sem_uniform by auto
     fix xa assume a:"xa \<in> effective_fn_of (World N)"
     then show "dual_eff_fn N (RGL_game_sem N (I(x := xa)) (RGL_Test f)) \<in> effective_fn_of (World N)"
-      using a RGL_sem_wd(2)[of "N""I(x:=xa)""RGL_Test f"] val_modify_val[of "xa""N""I""x"]  assms(2) assms(3) by auto
+      using a RGL_sem_wd(2)[of "N""I(x:=xa)""RGL_Test f"] val_modify_val[of "xa""N""I""x"]  assms(2) dtst.prems by auto
   next
     fix g1 g2 
     from dtst.prems(1) have a:"RGL_fml_closed f" apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
@@ -1079,18 +1082,24 @@ next
   proof -
     fix xa assume a0:"xa \<in> effective_fn_of (World N)"
     have b1:"RGL_game_sem N (I(x := xa)) g1 \<in> effective_fn_of (World N)" 
-      using a0 RGL_sem_wd(2)[of "N""I(x:=xa)"] assms(2) assms(3) val_modify_val[of "xa" "N" "I" "x"] by auto
+      using a0 RGL_sem_wd(2)[of "N""I(x:=xa)"] assms(2) choi.prems val_modify_val[of "xa" "N" "I" "x"] by auto
     have b2:"RGL_game_sem N (I(x := xa)) g2 \<in> effective_fn_of (World N)" 
-      using a0 RGL_sem_wd(2)[of "N""I(x:=xa)"] assms(2) assms(3) val_modify_val[of "xa" "N" "I" "x"] by auto
+      using a0 RGL_sem_wd(2)[of "N""I(x:=xa)"] assms(2) choi.prems val_modify_val[of "xa" "N" "I" "x"] by auto
     from b1 b2 show "(\<lambda>a. RGL_game_sem N (I(x := xa)) g1 a \<union> RGL_game_sem N (I(x := xa)) g2 a) \<in> effective_fn_of (World N)"
       using eff_union_eff[of "RGL_game_sem N (I(x := xa)) g1" "World N" "RGL_game_sem N (I(x := xa)) g2"] by auto
   next
     fix x1 x2 assume a:"fun_le x1 x2" and a1:"x1 \<in> effective_fn_of (World N)" and a2:"x2 \<in> effective_fn_of (World N)"
-    and b1:"\<forall>g1a\<in>effective_fn_of (World N). \<forall>g2\<in>effective_fn_of (World N). fun_le g1a g2 \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1a)) g1) (RGL_game_sem N (I(x := g2)) g1)"
-    and b2:"\<forall>g1\<in>effective_fn_of (World N). \<forall>g2a\<in>effective_fn_of (World N). fun_le g1 g2a \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1)) g2) (RGL_game_sem N (I(x := g2a)) g2)"
+    and b1:"(\<And>I. is_val N I \<Longrightarrow>
+             (\<lambda>a. RGL_game_sem N (I(x := a)) g1) \<in> effective_fn_of (World N) \<rightarrow> effective_fn_of (World N) \<and>
+             (\<forall>g1a\<in>effective_fn_of (World N).
+                 \<forall>g2\<in>effective_fn_of (World N). fun_le g1a g2 \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1a)) g1) (RGL_game_sem N (I(x := g2)) g1)))"
+    and b2:"\<And>I. is_val N I \<Longrightarrow>
+             (\<lambda>a. RGL_game_sem N (I(x := a)) g2) \<in> effective_fn_of (World N) \<rightarrow> effective_fn_of (World N) \<and>
+             (\<forall>g1\<in>effective_fn_of (World N).
+                 \<forall>g2a\<in>effective_fn_of (World N). fun_le g1 g2a \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1)) g2) (RGL_game_sem N (I(x := g2a)) g2))"
 
-    from a b1 a1 a2 have c1:"fun_le (RGL_game_sem N (I(x := x1)) g1) (RGL_game_sem N (I(x := x2)) g1)" by auto
-    from a b2 a1 a2 have c2:"fun_le (RGL_game_sem N (I(x := x1)) g2) (RGL_game_sem N (I(x := x2)) g2)" by auto
+    from a b1 a1 a2 choi.prems have c1:"fun_le (RGL_game_sem N (I(x := x1)) g1) (RGL_game_sem N (I(x := x2)) g1)" by auto
+    from a b2 a1 a2 choi.prems have c2:"fun_le (RGL_game_sem N (I(x := x1)) g2) (RGL_game_sem N (I(x := x2)) g2)" by auto
 
     from c1 c2
     show "fun_le (\<lambda>a. RGL_game_sem N (I(x := x1)) g1 a \<union> RGL_game_sem N (I(x := x1)) g2 a) (\<lambda>a. RGL_game_sem N (I(x := x2)) g1 a \<union> RGL_game_sem N (I(x := x2)) g2 a)"
@@ -1102,53 +1111,214 @@ next
   proof -
     fix xa assume a0:"xa \<in> effective_fn_of (World N)"
     show "RGL_game_sem N (I(x := xa)) (RGL_DChoice g1 g2) \<in> effective_fn_of (World N)" 
-      using RGL_sem_wd(2)[of "N""I(x:=xa)" "RGL_DChoice g1 g2"] val_modify_val[of "xa""N""I""x"] assms(2) assms(3) a0 by auto
+      using RGL_sem_wd(2)[of "N""I(x:=xa)" "RGL_DChoice g1 g2"] val_modify_val[of "xa""N""I""x"] assms(2) dchoi.prems a0 by auto
   next
     fix x1 x2 assume a:"fun_le x1 x2" and a1:"x1 \<in> effective_fn_of (World N)" and a2:"x2 \<in> effective_fn_of (World N)"
-    and b1:"\<forall>g1a\<in>effective_fn_of (World N). \<forall>g2\<in>effective_fn_of (World N). fun_le g1a g2 \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1a)) g1) (RGL_game_sem N (I(x := g2)) g1)"
-    and b2:"\<forall>g1\<in>effective_fn_of (World N). \<forall>g2a\<in>effective_fn_of (World N). fun_le g1 g2a \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1)) g2) (RGL_game_sem N (I(x := g2a)) g2)"
+    and b1:"\<And>I. is_val N I \<Longrightarrow>
+             (\<lambda>a. RGL_game_sem N (I(x := a)) g1) \<in> effective_fn_of (World N) \<rightarrow> effective_fn_of (World N) \<and>
+             (\<forall>g1a\<in>effective_fn_of (World N).
+                 \<forall>g2\<in>effective_fn_of (World N). fun_le g1a g2 \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1a)) g1) (RGL_game_sem N (I(x := g2)) g1))"
+    and b2:"\<And>I. is_val N I \<Longrightarrow>
+             (\<lambda>a. RGL_game_sem N (I(x := a)) g2) \<in> effective_fn_of (World N) \<rightarrow> effective_fn_of (World N) \<and>
+             (\<forall>g1\<in>effective_fn_of (World N).
+                 \<forall>g2a\<in>effective_fn_of (World N). fun_le g1 g2a \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1)) g2) (RGL_game_sem N (I(x := g2a)) g2))"
 
-    from a b1 a1 a2 have c1:"fun_le (RGL_game_sem N (I(x := x1)) g1) (RGL_game_sem N (I(x := x2)) g1)" by auto
-    from a b2 a1 a2 have c2:"fun_le (RGL_game_sem N (I(x := x1)) g2) (RGL_game_sem N (I(x := x2)) g2)" by auto
+    from a b1 a1 a2 dchoi.prems have c1:"fun_le (RGL_game_sem N (I(x := x1)) g1) (RGL_game_sem N (I(x := x2)) g1)" by auto
+    from a b2 a1 a2 dchoi.prems have c2:"fun_le (RGL_game_sem N (I(x := x1)) g2) (RGL_game_sem N (I(x := x2)) g2)" by auto
 
     from c1 c2
     show "fun_le (RGL_game_sem N (I(x := x1)) (RGL_DChoice g1 g2)) (RGL_game_sem N (I(x := x2)) (RGL_DChoice g1 g2))"
-      unfolding fun_le_def using RGL_DChoice_sem[of "N"] val_modify_val[where N="N"] a1 a2 assms(2) assms(3) by force
+      unfolding fun_le_def using RGL_DChoice_sem[of "N"] val_modify_val[where N="N"] a1 a2 assms(2) dchoi.prems  by force
   qed
 next
   case (seq g1 g2)
   then show ?case unfolding RGL_fixpt_op_def monotone_op_of_def apply auto
   proof -
     fix xa assume a0:"xa \<in> effective_fn_of (World N)"
-    have a1:"RGL_game_sem N (I(x := xa)) g1 \<in> effective_fn_of (World N)" using a0 RGL_sem_wd assms(2) assms(3) val_modify_val by force
-    have a2:"RGL_game_sem N (I(x := xa)) g2 \<in> effective_fn_of (World N)" using a0 RGL_sem_wd assms(2) assms(3) val_modify_val by force    
+    have a1:"RGL_game_sem N (I(x := xa)) g1 \<in> effective_fn_of (World N)" using a0 RGL_sem_wd assms(2) seq.prems val_modify_val by fastforce
+    have a2:"RGL_game_sem N (I(x := xa)) g2 \<in> effective_fn_of (World N)" using a0 RGL_sem_wd assms(2) seq.prems val_modify_val by fastforce    
     show "compo (Pow (World N)) (RGL_game_sem N (I(x := xa)) g2) (RGL_game_sem N (I(x := xa)) g1) \<in> effective_fn_of (World N)"
       using eff_compo_eff[of "RGL_game_sem N (I(x := xa)) g1" "World N" "RGL_game_sem N (I(x := xa)) g2"] a1 a2 by auto
   next
     fix x1 x2 assume a1:"x1\<in> effective_fn_of (World N)" and a2:"x2\<in> effective_fn_of (World N)" and a:"fun_le x1 x2"
-    and b1:"\<forall>g1a\<in>effective_fn_of (World N). \<forall>g2\<in>effective_fn_of (World N). fun_le g1a g2 \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1a)) g1) (RGL_game_sem N (I(x := g2)) g1)"
-    and b2:"\<forall>g1\<in>effective_fn_of (World N). \<forall>g2a\<in>effective_fn_of (World N). fun_le g1 g2a \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1)) g2) (RGL_game_sem N (I(x := g2a)) g2)"
+    and b1:"\<And>I. is_val N I \<Longrightarrow>
+             (\<lambda>a. RGL_game_sem N (I(x := a)) g1) \<in> effective_fn_of (World N) \<rightarrow> effective_fn_of (World N) \<and>
+             (\<forall>g1a\<in>effective_fn_of (World N).
+                 \<forall>g2\<in>effective_fn_of (World N). fun_le g1a g2 \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1a)) g1) (RGL_game_sem N (I(x := g2)) g1))"
+    and b2:"\<And>I. is_val N I \<Longrightarrow>
+             (\<lambda>a. RGL_game_sem N (I(x := a)) g2) \<in> effective_fn_of (World N) \<rightarrow> effective_fn_of (World N) \<and>
+             (\<forall>g1\<in>effective_fn_of (World N).
+                 \<forall>g2a\<in>effective_fn_of (World N). fun_le g1 g2a \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1)) g2) (RGL_game_sem N (I(x := g2a)) g2))"
 
-    from b1 a1 a2 a have c1:"fun_le (RGL_game_sem N (I(x := x1)) g1) (RGL_game_sem N (I(x := x2)) g1)" by auto
-    from b2 a1 a2 a have c2:"fun_le (RGL_game_sem N (I(x := x1)) g2) (RGL_game_sem N (I(x := x2)) g2)" by auto
+    from b1 a1 a2 a seq.prems have c1:"fun_le (RGL_game_sem N (I(x := x1)) g1) (RGL_game_sem N (I(x := x2)) g1)" by auto
+    from b2 a1 a2 a seq.prems have c2:"fun_le (RGL_game_sem N (I(x := x1)) g2) (RGL_game_sem N (I(x := x2)) g2)" by auto
 
     have d11:"RGL_game_sem N (I(x := x1)) g1 \<in> effective_fn_of (World N)" 
-      using RGL_sem_wd(2)[of "N" "I(x:=x1)" "g1"] assms(2) assms(3) val_modify_val[of "x1" "N" "I""x"] a1 by auto
+      using RGL_sem_wd(2)[of "N" "I(x:=x1)" "g1"] assms(2) seq.prems val_modify_val[of "x1" "N" "I""x"] a1 by auto
     have d12:"RGL_game_sem N (I(x := x2)) g1 \<in> effective_fn_of (World N)" 
-      using RGL_sem_wd(2)[of "N" "I(x:=x2)" "g1"] assms(2) assms(3) val_modify_val[of "x2" "N" "I""x"] a2 by auto
+      using RGL_sem_wd(2)[of "N" "I(x:=x2)" "g1"] assms(2) seq.prems val_modify_val[of "x2" "N" "I""x"] a2 by auto
     have d21:"RGL_game_sem N (I(x := x1)) g2 \<in> effective_fn_of (World N)" 
-      using RGL_sem_wd(2)[of "N" "I(x:=x1)" "g2"] assms(2) assms(3) val_modify_val[of "x1" "N" "I""x"] a1 by auto
+      using RGL_sem_wd(2)[of "N" "I(x:=x1)" "g2"] assms(2) seq.prems val_modify_val[of "x1" "N" "I""x"] a1 by auto
     have d22:"RGL_game_sem N (I(x := x2)) g2 \<in> effective_fn_of (World N)" 
-      using RGL_sem_wd(2)[of "N" "I(x:=x2)" "g2"] assms(2) assms(3) val_modify_val[of "x2" "N" "I""x"] a2 by auto    
+      using RGL_sem_wd(2)[of "N" "I(x:=x2)" "g2"] assms(2) seq.prems val_modify_val[of "x2" "N" "I""x"] a2 by auto    
     show "fun_le (compo (Pow (World N)) (RGL_game_sem N (I(x := x1)) g2) (RGL_game_sem N (I(x := x1)) g1)) (compo (Pow (World N)) (RGL_game_sem N (I(x := x2)) g2) (RGL_game_sem N (I(x := x2)) g1))"
       using c1 c2 d11 d12 d21 d22 compo_preserve_fun_le by force
   qed
 next
-  case (rec g y)
-  then show ?case sorry
+  case (rec y h1)
+  then show ?case (* h = ry.h1 When x=y then x is bdd in h1 then interpretation is independent of x. when x\<noteq>y use IH *)
+    unfolding RGL_fixpt_op_def monotone_op_of_def apply auto
+  proof -
+    fix xa assume a0:"xa \<in> effective_fn_of (World N)"
+    have a:"RGL_game_sem N (I(x := xa)) (RGL_Rec y h1) = Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := xa, y := u)) h1)" by auto
+    show "Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := xa, y := u)) h1) \<in> effective_fn_of (World N)"
+      using a a0 RGL_sem_wd(2)[of "N""I(x:=xa)""RGL_Rec y h1"] val_modify_val[of "xa""N""I""x"] assms(2) rec.prems by auto
+  next
+    fix g1 g2 assume a:"\<And>I. is_val N I \<Longrightarrow>
+             (\<lambda>a. RGL_game_sem N (I(x := a)) h1) \<in> effective_fn_of (World N) \<rightarrow> effective_fn_of (World N) \<and>
+             (\<forall>g1\<in>effective_fn_of (World N).
+                 \<forall>g2\<in>effective_fn_of (World N). fun_le g1 g2 \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1)) h1) (RGL_game_sem N (I(x := g2)) h1))"
+    and a1:"g1 \<in> effective_fn_of (World N)" and a2:"g2 \<in> effective_fn_of (World N)" and a0:"fun_le g1 g2"
+    show conc:"fun_le (Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g1, y := u)) h1)) (Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g2, y := u)) h1))"
+    proof (cases "x=y")
+      case True
+      then show ?thesis unfolding fun_le_def
+      proof -
+        assume ass:"x=y"
+        show "\<forall> xb. Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g1, y := u)) h1) xb \<subseteq> Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g2, y := u)) h1) xb"
+        proof fix xb
+        from True have c1:"\<And>u. I(x:=g1, y:=u) = I(x:=u)" by auto
+        from True have c2:"\<And>u. I(x:=g2, y:=u) = I(x:=u)" by auto
+        from c1 c2
+        show "Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g1, y := u)) h1) xb \<subseteq> Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g2, y := u)) h1) xb"
+          by force
+        qed
+      qed
+    next
+      case False
+      then show ?thesis
+      proof -
+        assume ass:"x\<noteq>y"
+        show "fun_le (Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g1, y := u)) h1)) (Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g2, y := u)) h1))"
+        proof -
+          have a4:"\<And>u. u\<in>effective_fn_of (World N) \<Longrightarrow> fun_le (RGL_game_sem N (I(x:=g1,y:=u)) h1) (RGL_game_sem N (I(x:=g2,y := u)) h1)"
+          proof - fix u
+            have c1:"I(y := u, x := g1) = I(x:=g1,y:=u)" by (metis ass fun_upd_twist)
+            have c2:"I(y := u, x := g2) = I(x:=g2,y:=u)" by (metis ass fun_upd_twist)
+            from a[of "I(y:=u)"] a1 a2 a0 val_modify_val[of "u" "N" "I" "y"] assms(2) rec.prems(3)
+            have "u\<in>effective_fn_of (World N) \<Longrightarrow> fun_le (RGL_game_sem N (I(y := u, x := g1)) h1) (RGL_game_sem N (I(y := u, x := g2)) h1)" by auto
+            then show "u\<in>effective_fn_of (World N) \<Longrightarrow> fun_le (RGL_game_sem N (I(x:=g1,y:=u)) h1) (RGL_game_sem N (I(x:=g2,y := u)) h1)"
+              using c1 c2 by auto
+          qed
+          show "fun_le (Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g1, y := u)) h1)) (Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g2, y := u)) h1))"
+            unfolding fun_le_def Lfp_def Lfp_family_def
+          proof fix xa 
+            show "(if xa \<subseteq> World N then ambient_inter (World N) {\<phi> xa |\<phi>. \<phi> \<in> {\<phi> \<in> effective_fn_of (World N). \<forall>xa. RGL_game_sem N (I(x := g1, y := \<phi>)) h1 xa \<subseteq> \<phi> xa}}
+           else undefined)
+          \<subseteq> (if xa \<subseteq> World N then ambient_inter (World N) {\<phi> xa |\<phi>. \<phi> \<in> {\<phi> \<in> effective_fn_of (World N). \<forall>xa. RGL_game_sem N (I(x := g2, y := \<phi>)) h1 xa \<subseteq> \<phi> xa}}
+              else undefined)"
+            proof (cases "xa \<subseteq> World N")
+              case True
+              then show ?thesis apply (simp add:if_split) 
+              proof -
+                assume "xa \<subseteq> World N" 
+                have "\<And>\<phi>. \<phi> \<in> effective_fn_of (World N) \<Longrightarrow> (\<forall>xa. RGL_game_sem N (I(x := g2, y := \<phi>)) h1 xa \<subseteq> \<phi> xa) 
+                  \<Longrightarrow> (\<forall>xa. RGL_game_sem N (I(x := g1, y := \<phi>)) h1 xa \<subseteq> \<phi> xa)"
+                  using a4 unfolding fun_le_def by blast
+                then have "{\<phi>. \<phi> \<in> effective_fn_of (World N) \<and> (\<forall>xa. RGL_game_sem N (I(x := g2, y := \<phi>)) h1 xa \<subseteq> \<phi> xa)}
+                  \<subseteq> {\<phi>. \<phi> \<in> effective_fn_of (World N) \<and> (\<forall>xa. RGL_game_sem N (I(x := g1, y := \<phi>)) h1 xa \<subseteq> \<phi> xa)}" by auto
+                then have "{\<phi> xa | \<phi>. \<phi> \<in> effective_fn_of (World N) \<and> (\<forall>xa. RGL_game_sem N (I(x := g2, y := \<phi>)) h1 xa \<subseteq> \<phi> xa)}
+                  \<subseteq> {\<phi> xa| \<phi>. \<phi> \<in> effective_fn_of (World N) \<and> (\<forall>xa. RGL_game_sem N (I(x := g1, y := \<phi>)) h1 xa \<subseteq> \<phi> xa)}" by auto
+                then show "ambient_inter (World N) {\<phi> xa |\<phi>. \<phi> \<in> effective_fn_of (World N) \<and> (\<forall>xa. RGL_game_sem N (I(x := g1, y := \<phi>)) h1 xa \<subseteq> \<phi> xa)}
+                  \<subseteq> ambient_inter (World N) {\<phi> xa |\<phi>. \<phi> \<in> effective_fn_of (World N) \<and> (\<forall>xa. RGL_game_sem N (I(x := g2, y := \<phi>)) h1 xa \<subseteq> \<phi> xa)}" 
+                  using ambient_inter_compat[where U="World N"] by auto
+              qed
+            next
+              case False
+              then show ?thesis by auto
+            qed
+          qed
+      qed
+    qed
+  qed
+qed
 next
-  case (drec g y)
-  then show ?case sorry
+  case (drec y h1)
+  then show ?case (* same as rec case *)
+    unfolding RGL_fixpt_op_def monotone_op_of_def apply auto
+  proof -
+    fix xa assume a0:"xa \<in> effective_fn_of (World N)"
+    have a:"RGL_game_sem N (I(x := xa)) (RGL_DRec y h1) = Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := xa, y := u)) h1)" by auto
+    show "Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := xa, y := u)) h1) \<in> effective_fn_of (World N)"
+      using a a0 RGL_sem_wd(2)[of "N""I(x:=xa)""RGL_Rec y h1"] val_modify_val[of "xa""N""I""x"] assms(2) rec.prems by auto
+  next
+    fix g1 g2 assume a:"\<And>I. is_val N I \<Longrightarrow>
+             (\<lambda>a. RGL_game_sem N (I(x := a)) h1) \<in> effective_fn_of (World N) \<rightarrow> effective_fn_of (World N) \<and>
+             (\<forall>g1\<in>effective_fn_of (World N).
+                 \<forall>g2\<in>effective_fn_of (World N). fun_le g1 g2 \<longrightarrow> fun_le (RGL_game_sem N (I(x := g1)) h1) (RGL_game_sem N (I(x := g2)) h1))"
+    and a1:"g1 \<in> effective_fn_of (World N)" and a2:"g2 \<in> effective_fn_of (World N)" and a0:"fun_le g1 g2"
+    show conc:"fun_le (Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g1, y := u)) h1)) (Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g2, y := u)) h1))"
+    proof (cases "x=y")
+      case True
+      then show ?thesis unfolding fun_le_def
+      proof -
+        assume ass:"x=y"
+        show "\<forall> xb. Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g1, y := u)) h1) xb \<subseteq> Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g2, y := u)) h1) xb"
+        proof fix xb
+        from True have c1:"\<And>u. I(x:=g1, y:=u) = I(x:=u)" by auto
+        from True have c2:"\<And>u. I(x:=g2, y:=u) = I(x:=u)" by auto
+        from c1 c2
+        show "Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g1, y := u)) h1) xb \<subseteq> Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g2, y := u)) h1) xb"
+          by force
+        qed
+      qed
+    next
+      case False
+      then show ?thesis
+      proof -
+        assume ass:"x\<noteq>y"
+        show "fun_le (Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g1, y := u)) h1)) (Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g2, y := u)) h1))"
+        proof -
+          have a4:"\<And>u. u\<in>effective_fn_of (World N) \<Longrightarrow> fun_le (RGL_game_sem N (I(x:=g1,y:=u)) h1) (RGL_game_sem N (I(x:=g2,y := u)) h1)"
+          proof - fix u
+            have c1:"I(y := u, x := g1) = I(x:=g1,y:=u)" by (metis ass fun_upd_twist)
+            have c2:"I(y := u, x := g2) = I(x:=g2,y:=u)" by (metis ass fun_upd_twist)
+            from a[of "I(y:=u)"] a1 a2 a0 val_modify_val[of "u" "N" "I" "y"] assms(2) rec.prems(3)
+            have "u\<in>effective_fn_of (World N) \<Longrightarrow> fun_le (RGL_game_sem N (I(y := u, x := g1)) h1) (RGL_game_sem N (I(y := u, x := g2)) h1)" by auto
+            then show "u\<in>effective_fn_of (World N) \<Longrightarrow> fun_le (RGL_game_sem N (I(x:=g1,y:=u)) h1) (RGL_game_sem N (I(x:=g2,y := u)) h1)"
+              using c1 c2 by auto
+          qed
+          show "fun_le (Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g1, y := u)) h1)) (Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := g2, y := u)) h1))"
+            unfolding fun_le_def Lfp_def Lfp_family_def
+          proof fix xa 
+            show "(if xa \<subseteq> World N then ambient_inter (World N) {\<phi> xa |\<phi>. \<phi> \<in> {\<phi> \<in> effective_fn_of (World N). \<forall>xa. RGL_game_sem N (I(x := g1, y := \<phi>)) h1 xa \<subseteq> \<phi> xa}}
+           else undefined)
+          \<subseteq> (if xa \<subseteq> World N then ambient_inter (World N) {\<phi> xa |\<phi>. \<phi> \<in> {\<phi> \<in> effective_fn_of (World N). \<forall>xa. RGL_game_sem N (I(x := g2, y := \<phi>)) h1 xa \<subseteq> \<phi> xa}}
+              else undefined)"
+            proof (cases "xa \<subseteq> World N")
+              case True
+              then show ?thesis apply (simp add:if_split) 
+              proof -
+                assume "xa \<subseteq> World N" 
+                have "\<And>\<phi>. \<phi> \<in> effective_fn_of (World N) \<Longrightarrow> (\<forall>xa. RGL_game_sem N (I(x := g2, y := \<phi>)) h1 xa \<subseteq> \<phi> xa) 
+                  \<Longrightarrow> (\<forall>xa. RGL_game_sem N (I(x := g1, y := \<phi>)) h1 xa \<subseteq> \<phi> xa)"
+                  using a4 unfolding fun_le_def by blast
+                then have "{\<phi>. \<phi> \<in> effective_fn_of (World N) \<and> (\<forall>xa. RGL_game_sem N (I(x := g2, y := \<phi>)) h1 xa \<subseteq> \<phi> xa)}
+                  \<subseteq> {\<phi>. \<phi> \<in> effective_fn_of (World N) \<and> (\<forall>xa. RGL_game_sem N (I(x := g1, y := \<phi>)) h1 xa \<subseteq> \<phi> xa)}" by auto
+                then have "{\<phi> xa | \<phi>. \<phi> \<in> effective_fn_of (World N) \<and> (\<forall>xa. RGL_game_sem N (I(x := g2, y := \<phi>)) h1 xa \<subseteq> \<phi> xa)}
+                  \<subseteq> {\<phi> xa| \<phi>. \<phi> \<in> effective_fn_of (World N) \<and> (\<forall>xa. RGL_game_sem N (I(x := g1, y := \<phi>)) h1 xa \<subseteq> \<phi> xa)}" by auto
+                then show "ambient_inter (World N) {\<phi> xa |\<phi>. \<phi> \<in> effective_fn_of (World N) \<and> (\<forall>xa. RGL_game_sem N (I(x := g1, y := \<phi>)) h1 xa \<subseteq> \<phi> xa)}
+                  \<subseteq> ambient_inter (World N) {\<phi> xa |\<phi>. \<phi> \<in> effective_fn_of (World N) \<and> (\<forall>xa. RGL_game_sem N (I(x := g2, y := \<phi>)) h1 xa \<subseteq> \<phi> xa)}" 
+                  using ambient_inter_compat[where U="World N"] by auto
+              qed
+            next
+              case False
+              then show ?thesis by auto
+            qed
+          qed
+      qed
+    qed
+  qed
 next
   show "RGL_gm_nodual x h" using assms by simp
 qed
