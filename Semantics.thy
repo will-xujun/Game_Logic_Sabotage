@@ -1292,8 +1292,7 @@ next
       using RGL_sem_wd(2)[of "N" "I(x:=x2)" "g1"] assms(2) seq.prems val_modify_val[of "x2" "N" "I""x"] a2 by auto
     have d21:"RGL_game_sem N (I(x := x1)) g2 \<in> effective_fn_of (World N)" 
       using RGL_sem_wd(2)[of "N" "I(x:=x1)" "g2"] assms(2) seq.prems val_modify_val[of "x1" "N" "I""x"] a1 by auto
-    have d22:"RGL_game_sem N (I(x := x2)) g2 \<in> effective_fn_of (Worl
-      using RGL_sem_wd(2)[of "N" "I(x:=x1)" "g2"] assms(2) assms(3) val_modify_val[of "x1" "N" "I""x"] effective_fn_of_def[of "World N"] carrier_of_def[of "World N"] a1 by autod N)" 
+    have d22:"RGL_game_sem N (I(x := x2)) g2 \<in> effective_fn_of (World N)"
       using RGL_sem_wd(2)[of "N" "I(x:=x2)" "g2"] assms(2) seq.prems val_modify_val[of "x2" "N" "I""x"] a2 by auto    
     show "fun_le (compo (Pow (World N)) (RGL_game_sem N (I(x := x1)) g2) (RGL_game_sem N (I(x := x1)) g1)) (compo (Pow (World N)) (RGL_game_sem N (I(x := x2)) g2) (RGL_game_sem N (I(x := x2)) g1))"
       using c1 c2 d11 d12 d21 d22 compo_preserve_fun_le by force
