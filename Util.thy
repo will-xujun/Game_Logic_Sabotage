@@ -7,11 +7,60 @@ begin
 definition ambient_inter :: "'a set \<Rightarrow> ('a set) set \<Rightarrow> 'a set" where
 "ambient_inter U F = {x\<in>U. \<forall>A\<in>F. x\<in>A}"
 
-lemma ambient_inter_compat : "F1\<subseteq> F2 \<Longrightarrow> ambient_inter U F2 \<subseteq> ambient_inter U F1"
+lemma ambient_inter_compat [simp]: "F1\<subseteq> F2 \<Longrightarrow> ambient_inter U F2 \<subseteq> ambient_inter U F1"
   unfolding ambient_inter_def by auto
+
+lemma ambient_inter_ambient [simp]: "ambient_inter U F \<subseteq> U" unfolding ambient_inter_def by simp
 
 lemma ambient_inter_eq: "F1=F2 \<Longrightarrow> ambient_inter U F1 = ambient_inter U F2"
   by auto
+
+lemma ambient_inter_emp: "ambient_inter U {} = U" unfolding ambient_inter_def by auto
+
+lemma ambient_inter_smallest: "\<And>x. x\<in>F \<Longrightarrow> ambient_inter U F \<subseteq> x" unfolding ambient_inter_def by auto
+
+definition amb_comp where
+  "amb_comp w a = (if a\<subseteq>w then w-a else undefined)"
+
+lemma amb_comp_compat [simp]: "a\<subseteq>w \<Longrightarrow> amb_comp w a\<subseteq>w" by (auto simp add:amb_comp_def)
+
+lemma amb_comp_invo [simp]: "a\<subseteq> w \<Longrightarrow> amb_comp w (amb_comp w a) = a" unfolding amb_comp_def by auto
+
+lemma amb_comp_flip : "a\<subseteq> w \<Longrightarrow> b\<subseteq> w \<Longrightarrow> a\<subseteq>b \<Longrightarrow> amb_comp w b \<subseteq> amb_comp w a"
+  unfolding amb_comp_def by auto
+
+lemma amb_comp_dm_andor: 
+  assumes "\<Omega> \<subseteq> Pow w"
+  shows "amb_comp w (ambient_inter w \<Omega>) = \<Union> {amb_comp w s |s. s\<in>\<Omega>}"
+proof (cases "\<Omega>={}")
+  case True
+  then show ?thesis by (simp add:ambient_inter_emp amb_comp_def)
+next
+  case False
+  then show ?thesis using ambient_inter_ambient apply simp
+  proof assume nonemp:"\<Omega> \<noteq> {}"
+    show "amb_comp w (ambient_inter w \<Omega>) \<subseteq> \<Union> {amb_comp w s |s. s \<in> \<Omega>}"
+    proof fix x assume a:"x \<in> amb_comp w (ambient_inter w \<Omega>)"
+      have "ambient_inter w \<Omega>\<subseteq> w" using ambient_inter_ambient by auto
+      then have "amb_comp w (ambient_inter w \<Omega>) \<subseteq> w" using amb_comp_compat by auto
+      then have b:"x\<in> w" using a by blast 
+      from a nonemp have "\<exists>s. s\<in>\<Omega> \<and> x\<notin>s" unfolding amb_comp_def ambient_inter_def 
+          using ambient_inter_ambient[of "w" "\<Omega>"]
+          by fastforce
+        then obtain s where c:"s \<in> \<Omega> \<and> x \<notin> s" by auto
+        then have "x\<in> amb_comp w s" using b assms unfolding amb_comp_def by auto
+        then show "x \<in> \<Union> {amb_comp w s |s. s \<in> \<Omega>}" using c by auto
+      qed
+    next
+      assume nonemp:"\<Omega>\<noteq>{}"
+      show "\<Union> {amb_comp w s |s. s \<in> \<Omega>} \<subseteq> amb_comp w (ambient_inter w \<Omega>)"
+      proof - from ambient_inter_smallest have a1:"\<And>s. s\<in>\<Omega> \<Longrightarrow> ambient_inter w \<Omega> \<subseteq> s" by auto
+        then have "\<And>s. s\<in>\<Omega> \<Longrightarrow> amb_comp w s \<subseteq> amb_comp w (ambient_inter w \<Omega>)"
+          using assms ambient_inter_ambient[of "w""\<Omega>"] by (meson Pow_iff amb_comp_flip in_mono)
+        then show ?thesis by auto
+      qed
+  qed
+qed
 
 definition fun_le :: "('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set) \<Rightarrow> bool" where
 "fun_le f g = (\<forall>x. f x \<subseteq> g x)"
@@ -92,10 +141,20 @@ definition monotone_op_of ::"'a set \<Rightarrow> ( ('a set \<Rightarrow> 'a set
 definition Lfp_family :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set)) \<Rightarrow> ('a set \<Rightarrow> 'a set) set" where
   "Lfp_family A f = {\<phi>. \<phi>\<in> effective_fn_of A \<and> fun_le (f \<phi>) \<phi>}"
 
-
 definition Lfp :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set)) \<Rightarrow> ('a set \<Rightarrow> 'a set)" where
-  "Lfp w f a = (if a \<subseteq> w then ambient_inter w {\<phi> a | \<phi>. \<phi> \<in> Lfp_family w f} else undefined)"
+  "Lfp w F a = (if a \<subseteq> w then ambient_inter w {\<phi> a | \<phi>. \<phi> \<in> Lfp_family w F} else undefined)"
 
+definition dual_fn where
+  "dual_fn w f a = (if a\<subseteq> w then amb_comp w (f (amb_comp w a)) else undefined)"
+
+lemma dual_fn_compat: "a\<subseteq>w \<Longrightarrow> dual_fn w f a = amb_comp w (f (amb_comp w a))" unfolding dual_fn_def by simp
+
+lemma dual_fn_invo: "a\<subseteq>w \<Longrightarrow> f\<in> Pow w \<rightarrow> Pow w \<Longrightarrow> dual_fn w (dual_fn w f) a = f a" unfolding dual_fn_def
+  using amb_comp_invo[of "a""w"] amb_comp_invo amb_comp_compat[of "a""w"]
+  by (simp add: Pi_iff)
+
+definition dual_op where
+  "dual_op w F f = dual_fn w (F f)"
 
 definition max_of :: "'a set \<Rightarrow> ('a set \<Rightarrow> 'a set)" where
   "max_of A x = (if x\<subseteq>A then A else undefined)"
@@ -170,7 +229,37 @@ definition Gfp_family :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<
 "Gfp_family A f = {\<phi>. \<phi>\<in> effective_fn_of A \<and> fun_le \<phi> (f \<phi>)}"
 
 definition Gfp :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set)) \<Rightarrow> ('a set \<Rightarrow> 'a set)" where
-  "Gfp w f a = (if a\<subseteq>w then \<Union>{\<phi> a | \<phi>. \<phi>\<in> Gfp_family w f} else undefined)"
+  "Gfp w F a = (if a\<subseteq>w then \<Union>{\<phi> a | \<phi>. \<phi>\<in> Gfp_family w F} else undefined)"
+
+lemma Lfp_dual_Gfp: "dual_fn w (Lfp w F) = Gfp w (dual_op w F)"
+  unfolding dual_fn_def Lfp_def Lfp_family_def Gfp_def Gfp_family_def dual_op_def apply rule
+proof - fix a
+  show "(if a \<subseteq> w then amb_comp w (if amb_comp w a \<subseteq> w then ambient_inter w {\<phi> (amb_comp w a) |\<phi>. \<phi> \<in> {\<phi> \<in> effective_fn_of w. fun_le (F \<phi>) \<phi>}} else undefined)
+          else undefined) =
+         (if a \<subseteq> w then \<Union> {\<phi> a |\<phi>. \<phi> \<in> {\<phi> \<in> effective_fn_of w. fun_le \<phi> (\<lambda>a. if a \<subseteq> w then amb_comp w (F \<phi> (amb_comp w a)) else undefined)}} else undefined)"
+  proof (cases "a\<subseteq> w")
+    case True
+    then show ?thesis apply (simp)
+    proof -
+      assume a1:"a\<subseteq>w"
+      show "amb_comp w (ambient_inter w {\<phi> (amb_comp w a) |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (F \<phi>) \<phi>}) =
+    \<Union> {\<phi> a |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le \<phi> (\<lambda>a. if a \<subseteq> w then amb_comp w (F \<phi> (amb_comp w a)) else undefined)}" 
+      proof - let ?LHS = "amb_comp w (ambient_inter w {\<phi> (amb_comp w a) |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (F \<phi>) \<phi>})"
+        let ?RHS = "\<Union> {\<phi> a |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le \<phi> (\<lambda>a. if a \<subseteq> w then amb_comp w (F \<phi> (amb_comp w a)) else undefined)}"
+        have "{\<phi> (amb_comp w a) |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (F \<phi>) \<phi>} \<subseteq> Pow w"
+          using a1 amb_comp_compat[of "a""w"] effective_fn_of_def[of "w"] carrier_of_def[of "w"] by blast
+        then have "?LHS = \<Union> {amb_comp w (\<phi> (amb_comp w a)) |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (F \<phi>) \<phi>}"
+          using amb_comp_dm_andor[of "{\<phi> (amb_comp w a) |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (F \<phi>) \<phi>}" "w"] by auto
+        also have "... = \<Union> {dual_fn w \<phi> a |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (F \<phi>) \<phi>}"
+          using a1 dual_fn_compat by blast
+        
+      qed
+    qed
+  next
+    case False
+    then show ?thesis by auto
+  qed
+qed
 
 lemma Lfp_in_carrier : "Lfp w f \<in> carrier_of w"
   apply (auto simp add:carrier_of_def)

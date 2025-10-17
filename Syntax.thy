@@ -157,7 +157,7 @@ definition RGL_DTest where "RGL_DTest f = RGL_Dual (RGL_Test f)"
 
 definition RGL_DChoice where "RGL_DChoice g1 g2 = RGL_Dual (RGL_Choice (RGL_Dual g1) (RGL_Dual g2))"
 
-definition RGL_DRec where "RGL_DRec x g = RGL_Dual (RGL_undual_free x (RGL_Rec x g))"
+definition RGL_DRec where "RGL_DRec x g = RGL_Dual (RGL_Rec x (RGL_Dual (RGL_dual_free x g)))"
   
 fun RGL_sy_dual :: "'c RGL_game \<Rightarrow> 'c RGL_game" 
   and RGL_sy_comp :: "'c RGL_fml \<Rightarrow> 'c RGL_fml" where

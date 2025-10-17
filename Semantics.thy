@@ -116,6 +116,11 @@ lemma comp_flip [simp]:
   using assms comp_subset_is_diff
   by (metis Diff_mono order_refl)
 
+lemma comp_invo [simp]:
+  assumes "a\<subseteq> N"
+  shows "comp N (comp N a) = a"
+  using assms unfolding comp_def by auto
+
 definition dual_eff_fn :: "'a Nbd_Struct  \<Rightarrow> 'a eff_fn_type \<Rightarrow> 'a eff_fn_type" where
   "dual_eff_fn N f A = (if A\<subseteq> World N then comp (World N) (f (comp (World N) A )) else undefined)"
 
@@ -143,6 +148,54 @@ lemma extension_dual_extension [simp]:
 lemma effective_dual_effective [simp]:
   assumes "f \<in> effective_fn_of (World N)" and "is_nbd_struct N" shows "dual_eff_fn N f \<in> effective_fn_of (World N)"
   using assms by (simp add:effective_fn_of_def carrier_of_def)
+
+lemma dual_eff_fn_invo [simp]:
+  assumes "f \<in> effective_fn_of (World N)"
+  shows "dual_eff_fn N (dual_eff_fn N f) = f"
+  using assms
+  unfolding dual_eff_fn_def
+proof - assume "f \<in> effective_fn_of (World N)"
+  show "(\<lambda>A. if A \<subseteq> World N
+         then Semantics.comp (World N)
+               (if Semantics.comp (World N) A \<subseteq> World N then Semantics.comp (World N) (f (Semantics.comp (World N) (Semantics.comp (World N) A))) else undefined)
+         else undefined) =
+    f" apply rule apply simp apply rule
+  proof
+    fix A assume a:"A\<subseteq> World N"
+    then have b:"World N - (World N - A) = A" using double_diff by auto
+    from a have "f A\<subseteq> World N" using assms unfolding effective_fn_of_def carrier_of_def by auto
+    then have "comp (World N) (comp (World N) (f A)) = f A" using comp_invo by auto
+    then show "Semantics.comp (World N) (Semantics.comp (World N) (f (World N - (World N - A)))) = f A" using b by auto
+  next
+    fix A 
+    show "\<not> A \<subseteq> World N \<longrightarrow> undefined = f A" apply rule
+    proof -
+      assume a:"\<not> A \<subseteq> World N"
+      from assms a show "undefined = f A" unfolding effective_fn_of_def carrier_of_def extension_def by auto 
+    qed
+  qed
+qed
+
+definition eff_fn_fam_dual_closed where
+  "eff_fn_fam_dual_closed N F \<equiv> \<forall>x\<in>F. (dual_eff_fn N x) \<in> F"
+
+lemma all_eff_fn_dual_closed: assumes "is_nbd_struct N" shows "eff_fn_fam_dual_closed N (effective_fn_of (World N))"
+  unfolding eff_fn_fam_dual_closed_def
+  using effective_dual_effective[where N="N"] assms by auto
+
+lemma dual_eff_fn_set_compre: 
+  assumes "F\<subseteq> effective_fn_of (World N)" and "eff_fn_fam_dual_closed N F"
+  shows "{u. u \<in> F} = {dual_eff_fn N u | u. u\<in> F}"
+  apply auto
+proof -
+  fix x assume a:"x\<in>F"
+  from assms a have "dual_eff_fn N x \<in> F" unfolding eff_fn_fam_dual_closed_def by auto
+  then have "x = dual_eff_fn N (dual_eff_fn N x) \<and> (dual_eff_fn N x)\<in> F" using dual_eff_fn_invo[of "x" "N"] assms(1) a by force 
+  then show "\<exists>u. x = dual_eff_fn N u \<and> u \<in> F" by auto
+next
+  fix u assume a:"u\<in>F"
+  show "dual_eff_fn N u\<in> F" using assms(2) a unfolding eff_fn_fam_dual_closed_def by auto
+qed
 
 section \<open>The GLs extension of base \<close>
 
@@ -349,7 +402,7 @@ lemma GLs_eff_fn_double_dual :
   assumes "A \<subseteq> World N \<times> ALL_CX"
         "f \<in> Pow (World N \<times> ALL_CX) \<rightarrow> Pow (World N \<times> ALL_CX)"
   shows "GLs_dual_eff_fn (GLs_lift_nbd N) (GLs_dual_eff_fn (GLs_lift_nbd N) f) A = f A"
-  apply (simp add:GLs_dual_eff_fn_def  assms)
+  apply (simp add:GLs_dual_eff_fn_def assms)
 proof -
   have "f A\<in> Pow (World N\<times> ALL_CX)" using assms by auto
   then show "sabo_comp (GLs_lift_nbd N) (sabo_comp (GLs_lift_nbd N) (f A)) = f A"
@@ -980,7 +1033,22 @@ qed
 definition RGL_fixpt_op:: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type \<Rightarrow> RGL_var_type RGL_game \<Rightarrow> RGL_eff_fn_type \<Rightarrow> RGL_eff_fn_type" where
   "RGL_fixpt_op N I x g u = RGL_game_sem N (I(x:=u)) g"
 
-lemma RGL_fixpt_op_dual: 
+definition RGL_fixpt_dual_op:: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type \<Rightarrow> RGL_var_type RGL_game \<Rightarrow> RGL_eff_fn_type \<Rightarrow> RGL_eff_fn_type" where
+  "RGL_fixpt_dual_op N I x g u = dual_eff_fn N (RGL_game_sem N (I(x:=u)) g)"
+
+lemma RGL_Rec_sem [simp]: "RGL_game_sem N I (RGL_Rec x g) A = Lfp (World N) (RGL_fixpt_op N I x g) A"
+  unfolding RGL_fixpt_op_def by simp
+
+lemma RGL_DRec_sem: "RGL_game_sem N I (RGL_DRec x g) A =  Gfp (World N) (RGL_fixpt_dual_op N I x g) A"
+  unfolding RGL_DRec_def apply simp
+  unfolding dual_eff_fn_def apply simp apply rule
+proof 
+  assume a:"A\<subseteq> World N"
+  show "Semantics.comp (World N) (Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := u)) (RGL_Dual (RGL_dual_free x g))) (World N - A)) =
+    Gfp (World N) (RGL_fixpt_dual_op N I x g) A"
+qed
+
+lemma RGL_fixpt_op_dual_homo: 
   assumes "is_nbd_struct N" and "is_val N I" and "u\<in> effective_fn_of (World N)"
   shows "RGL_game_sem N (I(x:=u)) (RGL_dual_free x g) = RGL_game_sem N (I(x:= dual_eff_fn N u)) g"
   using assms(2) assms(3)
