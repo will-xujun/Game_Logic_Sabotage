@@ -133,6 +133,8 @@ lemma compo_preserve_fun_le: "f1\<in> effective_fn_of A \<Longrightarrow> f2\<in
   unfolding compo_def fun_le_def effective_fn_of_def carrier_of_def mono_of_def extension_def
   by (smt (verit, ccfv_threshold) Int_iff PiE Pow_iff mem_Collect_eq restrict_apply subsetD subsetI)
 
+definition op_of where
+  "op_of A = (effective_fn_of A) \<rightarrow> (effective_fn_of A)"
 
 definition monotone_op_of ::"'a set \<Rightarrow> ( ('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set) ) set" where
   "monotone_op_of A = (effective_fn_of A \<rightarrow> effective_fn_of A)
@@ -144,17 +146,47 @@ definition Lfp_family :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<
 definition Lfp :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set)) \<Rightarrow> ('a set \<Rightarrow> 'a set)" where
   "Lfp w F a = (if a \<subseteq> w then ambient_inter w {\<phi> a | \<phi>. \<phi> \<in> Lfp_family w F} else undefined)"
 
-definition dual_fn where
-  "dual_fn w f a = (if a\<subseteq> w then amb_comp w (f (amb_comp w a)) else undefined)"
+definition dual_eff_fn where
+  "dual_eff_fn w f a = (if a\<subseteq> w then amb_comp w (f (amb_comp w a)) else undefined)"
 
-lemma dual_fn_compat: "a\<subseteq>w \<Longrightarrow> dual_fn w f a = amb_comp w (f (amb_comp w a))" unfolding dual_fn_def by simp
+lemma dual_eff_fn_compat_img: "a\<subseteq>w \<Longrightarrow> dual_eff_fn w f a = amb_comp w (f (amb_comp w a))" unfolding dual_eff_fn_def by simp
 
-lemma dual_fn_invo: "a\<subseteq>w \<Longrightarrow> f\<in> Pow w \<rightarrow> Pow w \<Longrightarrow> dual_fn w (dual_fn w f) a = f a" unfolding dual_fn_def
-  using amb_comp_invo[of "a""w"] amb_comp_invo amb_comp_compat[of "a""w"]
+lemma ext_dual_ext: "f \<in> extension (Pow w) \<Longrightarrow> dual_eff_fn w f \<in>  extension (Pow w)"
+  unfolding extension_def dual_eff_fn_def by auto
+
+lemma mono_dual_mono: "f \<in> mono_of w \<Longrightarrow> f\<in> Pow w \<rightarrow> Pow w \<Longrightarrow> dual_eff_fn w f \<in> mono_of w"
+  unfolding dual_eff_fn_def mono_of_def amb_comp_def apply simp
+  by (metis Diff_mono Diff_subset Pow_iff funcset_mem order_eq_refl)
+
+lemma funcset_dual_funcset: "f\<in> Pow w \<rightarrow> Pow w \<Longrightarrow> dual_eff_fn w f\<in> Pow w \<rightarrow> Pow w"
+  unfolding dual_eff_fn_def amb_comp_def
   by (simp add: Pi_iff)
 
+lemma eff_dual_eff: "f\<in> effective_fn_of w \<Longrightarrow> dual_eff_fn w f \<in> effective_fn_of w"
+  using mono_dual_mono[of "f""w"] ext_dual_ext[of "f""w"] funcset_dual_funcset[of "f""w"] 
+  unfolding effective_fn_of_def carrier_of_def by auto
+
+lemma dual_eff_fn_invo: "f\<in> effective_fn_of w \<Longrightarrow> dual_eff_fn w (dual_eff_fn w f) = f"
+  unfolding dual_eff_fn_def effective_fn_of_def carrier_of_def extension_def
+proof fix a assume a1:"f \<in> (Pow w \<rightarrow> Pow w) \<inter> {f. \<forall>x. x \<notin> Pow w \<longrightarrow> f x = undefined} \<inter> mono_of w"
+  show "(if a \<subseteq> w then amb_comp w (if amb_comp w a \<subseteq> w then amb_comp w (f (amb_comp w (amb_comp w a))) else undefined) else undefined) = f a"
+    apply simp apply rule
+  proof
+    assume a2:"a\<subseteq>w"
+    show "amb_comp w (amb_comp w (f a)) = f a" using amb_comp_invo a2 a1 Pow_iff by auto
+  next
+    show "\<not> a \<subseteq> w \<longrightarrow> undefined = f a"
+    proof assume a2:"\<not> a\<subseteq> w"
+      show "undefined = f a" using a1 Pow_iff a2 by auto
+    qed
+  qed
+qed
+
 definition dual_op where
-  "dual_op w F f = dual_fn w (F f)"
+  "dual_op w F f = dual_eff_fn w (F f)"
+
+definition op_homo_dual where
+  "op_homo_dual w F \<equiv> \<forall>f\<in> effective_fn_of w. F (dual_eff_fn w f) = dual_eff_fn w (F f)"
 
 definition max_of :: "'a set \<Rightarrow> ('a set \<Rightarrow> 'a set)" where
   "max_of A x = (if x\<subseteq>A then A else undefined)"
@@ -231,28 +263,82 @@ definition Gfp_family :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<
 definition Gfp :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set)) \<Rightarrow> ('a set \<Rightarrow> 'a set)" where
   "Gfp w F a = (if a\<subseteq>w then \<Union>{\<phi> a | \<phi>. \<phi>\<in> Gfp_family w F} else undefined)"
 
-lemma Lfp_dual_Gfp: "dual_fn w (Lfp w F) = Gfp w (dual_op w F)"
-  unfolding dual_fn_def Lfp_def Lfp_family_def Gfp_def Gfp_family_def dual_op_def apply rule
+definition eff_fn_fam_dual_closed where
+  "eff_fn_fam_dual_closed w F \<equiv> \<forall>x\<in>F. (dual_eff_fn w x) \<in> F"
+
+lemma all_eff_fn_dual_closed: "eff_fn_fam_dual_closed w (effective_fn_of w)"
+  unfolding eff_fn_fam_dual_closed_def
+  using eff_dual_eff by auto
+
+lemma dual_eff_fn_compre:
+  "{\<phi>. \<phi>\<in> effective_fn_of w \<and> P \<phi>} = {dual_eff_fn w \<phi>|\<phi>. \<phi>\<in>effective_fn_of w \<and> P (dual_eff_fn w \<phi>)}"
+  using eff_dual_eff dual_eff_fn_invo
+  by force
+
+lemma fun_fam_img_fam:
+  "F=G \<Longrightarrow> {f a|f. f\<in>F} = {f a|f. f\<in>G}" by auto
+
+lemma dual_funle_anti:
+  "f\<in> effective_fn_of w \<Longrightarrow> g\<in> effective_fn_of w \<Longrightarrow> fun_le f g \<Longrightarrow> fun_le (dual_eff_fn w g) (dual_eff_fn w f)"
+  unfolding fun_le_def dual_eff_fn_def apply simp
+proof fix x assume a1:"f \<in> effective_fn_of w"
+  and a2:"g \<in> effective_fn_of w" and a3:"\<forall>x. f x \<subseteq> g x"
+  show "x \<subseteq> w \<longrightarrow> amb_comp w (g (amb_comp w x)) \<subseteq> amb_comp w (f (amb_comp w x))"
+  proof 
+    assume a4:"x\<subseteq> w"    
+    show "amb_comp w (g (amb_comp w x)) \<subseteq> amb_comp w (f (amb_comp w x))"
+    proof -
+      from a4 have "(amb_comp w x) \<subseteq> w" using amb_comp_compat by auto
+      then have b2:"g (amb_comp w x) \<subseteq> w" using a2 
+        unfolding effective_fn_of_def carrier_of_def by auto
+
+      from a4 have "(amb_comp w x) \<subseteq> w" using amb_comp_compat by auto
+      then have b1:"f (amb_comp w x) \<subseteq> w" using a1
+        unfolding effective_fn_of_def carrier_of_def by auto
+
+      from a3 have "f (amb_comp w x) \<subseteq> g (amb_comp w x)" by auto
+      then show ?thesis using amb_comp_flip[of "f (amb_comp w x)""w""g (amb_comp w x)"] b2 b1 by auto
+    qed
+  qed
+qed
+
+
+lemma Lfp_dual_Gfp: 
+  assumes "op_homo_dual w F" and "F\<in> op_of w"
+  shows "dual_eff_fn w (Lfp w F) = Gfp w F"
+  unfolding dual_eff_fn_def Lfp_def Lfp_family_def Gfp_def Gfp_family_def dual_op_def apply rule
 proof - fix a
   show "(if a \<subseteq> w then amb_comp w (if amb_comp w a \<subseteq> w then ambient_inter w {\<phi> (amb_comp w a) |\<phi>. \<phi> \<in> {\<phi> \<in> effective_fn_of w. fun_le (F \<phi>) \<phi>}} else undefined)
           else undefined) =
-         (if a \<subseteq> w then \<Union> {\<phi> a |\<phi>. \<phi> \<in> {\<phi> \<in> effective_fn_of w. fun_le \<phi> (\<lambda>a. if a \<subseteq> w then amb_comp w (F \<phi> (amb_comp w a)) else undefined)}} else undefined)"
+         (if a \<subseteq> w then \<Union> {\<phi> a |\<phi>. \<phi> \<in> {\<phi> \<in> effective_fn_of w. fun_le \<phi> (F \<phi>)}} else undefined)"
   proof (cases "a\<subseteq> w")
     case True
     then show ?thesis apply (simp)
     proof -
       assume a1:"a\<subseteq>w"
-      show "amb_comp w (ambient_inter w {\<phi> (amb_comp w a) |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (F \<phi>) \<phi>}) =
-    \<Union> {\<phi> a |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le \<phi> (\<lambda>a. if a \<subseteq> w then amb_comp w (F \<phi> (amb_comp w a)) else undefined)}" 
+      show "amb_comp w (ambient_inter w {\<phi> (amb_comp w a) |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (F \<phi>) \<phi>}) = \<Union> {\<phi> a |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le \<phi> (F \<phi>)}" 
       proof - let ?LHS = "amb_comp w (ambient_inter w {\<phi> (amb_comp w a) |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (F \<phi>) \<phi>})"
-        let ?RHS = "\<Union> {\<phi> a |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le \<phi> (\<lambda>a. if a \<subseteq> w then amb_comp w (F \<phi> (amb_comp w a)) else undefined)}"
+        let ?RHS = "\<Union> {\<phi> a |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le \<phi> (F \<phi>)}"
         have "{\<phi> (amb_comp w a) |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (F \<phi>) \<phi>} \<subseteq> Pow w"
           using a1 amb_comp_compat[of "a""w"] effective_fn_of_def[of "w"] carrier_of_def[of "w"] by blast
         then have "?LHS = \<Union> {amb_comp w (\<phi> (amb_comp w a)) |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (F \<phi>) \<phi>}"
           using amb_comp_dm_andor[of "{\<phi> (amb_comp w a) |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (F \<phi>) \<phi>}" "w"] by auto
-        also have "... = \<Union> {dual_fn w \<phi> a |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (F \<phi>) \<phi>}"
-          using a1 dual_fn_compat by blast
-        
+        also have "... = \<Union> {dual_eff_fn w \<phi> a |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (F \<phi>) \<phi>}"
+          using a1 unfolding dual_eff_fn_def by auto
+        also have "... = \<Union> {dual_eff_fn w (dual_eff_fn w \<phi>) a |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (F (dual_eff_fn w \<phi>)) (dual_eff_fn w \<phi>)}"
+          by (metis (no_types, opaque_lifting) dual_eff_fn_invo eff_dual_eff)
+        also have "... = \<Union> {\<phi> a |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (F (dual_eff_fn w \<phi>)) (dual_eff_fn w \<phi>)}"
+          using dual_eff_fn_invo by fastforce
+        also have "... = \<Union> {\<phi> a |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (dual_eff_fn w (F \<phi>)) (dual_eff_fn w \<phi>)}"
+          using assms unfolding op_homo_dual_def by force
+        finally have a1:"?LHS = \<Union> {\<phi> a |\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (dual_eff_fn w (F \<phi>)) (dual_eff_fn w \<phi>)}" by auto
+
+        have a2:"\<forall>\<phi>. \<phi> \<in> effective_fn_of w \<and> fun_le (dual_eff_fn w (F \<phi>)) (dual_eff_fn w \<phi>) 
+          \<longleftrightarrow> \<phi> \<in> effective_fn_of w \<and> fun_le \<phi> (F \<phi>)"          
+          using assms dual_funle_anti dual_eff_fn_invo unfolding op_of_def
+          by (metis (no_types, lifting) Pi_mem eff_dual_eff)
+
+        from a1 a2 show "?LHS = ?RHS" by auto
       qed
     qed
   next

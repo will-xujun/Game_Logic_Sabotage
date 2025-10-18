@@ -103,12 +103,13 @@ lemma cx_negate_compat [simp]:
   using assms by (auto simp add:ALL_CX_def Sab_def)
 
 definition comp :: "'a set \<Rightarrow> 'a set \<Rightarrow> 'a set" where
-  "comp N A = (if A \<subseteq> N then N-A else undefined)"
+  "comp w A = amb_comp w A"
 
-lemma comp_compat [simp] : assumes "A \<subseteq> N" shows "comp N A\<subseteq> N" using assms by (auto simp add:comp_def)
+lemma comp_compat [simp] : assumes "A \<subseteq> N" shows "comp N A\<subseteq> N" 
+  using assms by (auto simp add:comp_def)
 
 lemma comp_subset_is_diff [simp]: assumes "A\<subseteq>N" shows "comp N A = N - A"
-  using assms by (auto simp add:comp_def)
+  using assms unfolding comp_def amb_comp_def by auto
 
 lemma comp_flip [simp]:
   assumes "a\<subseteq>b" and "a\<subseteq>N" and "b\<subseteq>N"
@@ -122,28 +123,27 @@ lemma comp_invo [simp]:
   using assms unfolding comp_def by auto
 
 definition dual_eff_fn :: "'a Nbd_Struct  \<Rightarrow> 'a eff_fn_type \<Rightarrow> 'a eff_fn_type" where
-  "dual_eff_fn N f A = (if A\<subseteq> World N then comp (World N) (f (comp (World N) A )) else undefined)"
+  "dual_eff_fn N f A = Util.dual_eff_fn (World N) f A"
 
 lemma dual_eff_fn_compat[simp]:
   fixes N :: "'a Nbd_Struct"
   and f:: "'a eff_fn_type"
   assumes "is_nbd_struct N" "f\<in>Pow (World N) \<rightarrow> Pow (World N)"
   shows "dual_eff_fn N f \<in> Pow (World N) \<rightarrow> Pow (World N)"
-  using assms apply (auto simp add:effective_fn_of_def carrier_of_def is_nbd_struct_def)
-    apply (simp add:dual_eff_fn_def Pi_iff)
-  done
+  using assms unfolding dual_eff_fn_def
+  using funcset_dual_funcset[of "f" "World N"] by auto
 
 lemma mono_dual_mono[simp]:
   fixes N :: "'a Nbd_Struct"
   and f:: "'a eff_fn_type"
 assumes "f\<in> mono_of (World N)" and "f\<in> Pow (World N)\<rightarrow> Pow (World N)"
 shows "dual_eff_fn N f \<in> mono_of (World N)"
-  using assms apply (auto simp add:dual_eff_fn_def mono_of_def comp_def)
-  by (meson Diff_mono Diff_subset in_mono subset_iff_psubset_eq)
+  using assms mono_dual_mono[of "f""World N"] unfolding dual_eff_fn_def
+  by auto
 
 lemma extension_dual_extension [simp]:
   assumes "f \<in> extension (Pow (World N))" shows "dual_eff_fn N f \<in>  extension (Pow (World N))"
-  by (simp add:extension_def dual_eff_fn_def)
+  using assms ext_dual_ext[of "f" "World N"] unfolding dual_eff_fn_def by auto
 
 lemma effective_dual_effective [simp]:
   assumes "f \<in> effective_fn_of (World N)" and "is_nbd_struct N" shows "dual_eff_fn N f \<in> effective_fn_of (World N)"
@@ -154,27 +154,7 @@ lemma dual_eff_fn_invo [simp]:
   shows "dual_eff_fn N (dual_eff_fn N f) = f"
   using assms
   unfolding dual_eff_fn_def
-proof - assume "f \<in> effective_fn_of (World N)"
-  show "(\<lambda>A. if A \<subseteq> World N
-         then Semantics.comp (World N)
-               (if Semantics.comp (World N) A \<subseteq> World N then Semantics.comp (World N) (f (Semantics.comp (World N) (Semantics.comp (World N) A))) else undefined)
-         else undefined) =
-    f" apply rule apply simp apply rule
-  proof
-    fix A assume a:"A\<subseteq> World N"
-    then have b:"World N - (World N - A) = A" using double_diff by auto
-    from a have "f A\<subseteq> World N" using assms unfolding effective_fn_of_def carrier_of_def by auto
-    then have "comp (World N) (comp (World N) (f A)) = f A" using comp_invo by auto
-    then show "Semantics.comp (World N) (Semantics.comp (World N) (f (World N - (World N - A)))) = f A" using b by auto
-  next
-    fix A 
-    show "\<not> A \<subseteq> World N \<longrightarrow> undefined = f A" apply rule
-    proof -
-      assume a:"\<not> A \<subseteq> World N"
-      from assms a show "undefined = f A" unfolding effective_fn_of_def carrier_of_def extension_def by auto 
-    qed
-  qed
-qed
+  using Util.dual_eff_fn_invo[of "f""World N"] by auto
 
 definition eff_fn_fam_dual_closed where
   "eff_fn_fam_dual_closed N F \<equiv> \<forall>x\<in>F. (dual_eff_fn N x) \<in> F"
@@ -861,17 +841,21 @@ lemma RGL_DChoice_sem:
   assumes "is_nbd_struct N" and "is_val N I"
 shows"RGL_game_sem N I (RGL_DChoice g1 g2) A = RGL_game_sem N I g1 A \<inter> RGL_game_sem N I g2 A"
   unfolding RGL_DChoice_def apply (simp add:dual_eff_fn_def)
+  unfolding Util.dual_eff_fn_def apply simp
   apply rule 
 proof
-  assume a:"A\<subseteq> World N" 
+  assume a:"A\<subseteq> World N"
   then have a2:"(World N - (World N-A)) = A" by auto
-  then have b1:"RGL_game_sem N I g1 A\<subseteq> World N" using RGL_sem_wd(2)[of "N""I""g1"] assms by (auto simp add:effective_fn_of_def carrier_of_def)
+  then have b1:"RGL_game_sem N I g1 A \<subseteq> World N" using RGL_sem_wd(2)[of "N""I""g1"] assms by (auto simp add:effective_fn_of_def carrier_of_def)
 
   from a have b2:"RGL_game_sem N I g2 A\<subseteq> World N" using RGL_sem_wd(2)[of "N""I""g2"] assms by (auto simp add:effective_fn_of_def carrier_of_def)
 
-  from a2 b1 b2 comp_def
-  show "comp (World N) (comp (World N) (RGL_game_sem N I g1 (World N - (World N - A))) \<union> Semantics.comp (World N) (RGL_game_sem N I g2 (World N - (World N - A)))) = RGL_game_sem N I g1 A \<inter> RGL_game_sem N I g2 A"
-    by auto
+  from a2 b1 b2 amb_comp_def amb_comp_compat a
+  show "amb_comp (World N)
+     (Semantics.dual_eff_fn N (RGL_game_sem N I g1) (amb_comp (World N) A) \<union> Semantics.dual_eff_fn N (RGL_game_sem N I g2) (amb_comp (World N) A)) =
+    RGL_game_sem N I g1 A \<inter> RGL_game_sem N I g2 A"
+    unfolding dual_eff_fn_def Util.dual_eff_fn_def
+    by (smt (verit) Diff_Un le_sup_iff set_double_diff)
 next
   show "\<not> A\<subseteq> World N \<longrightarrow> undefined = RGL_game_sem N I g1 A \<inter> RGL_game_sem N I g2 A"
   proof
@@ -1039,16 +1023,7 @@ definition RGL_fixpt_dual_op:: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var
 lemma RGL_Rec_sem [simp]: "RGL_game_sem N I (RGL_Rec x g) A = Lfp (World N) (RGL_fixpt_op N I x g) A"
   unfolding RGL_fixpt_op_def by simp
 
-lemma RGL_DRec_sem: "RGL_game_sem N I (RGL_DRec x g) A =  Gfp (World N) (RGL_fixpt_dual_op N I x g) A"
-  unfolding RGL_DRec_def apply simp
-  unfolding dual_eff_fn_def apply simp apply rule
-proof 
-  assume a:"A\<subseteq> World N"
-  show "Semantics.comp (World N) (Lfp (World N) (\<lambda>u. RGL_game_sem N (I(x := u)) (RGL_Dual (RGL_dual_free x g))) (World N - A)) =
-    Gfp (World N) (RGL_fixpt_dual_op N I x g) A"
-qed
-
-lemma RGL_fixpt_op_dual_homo: 
+lemma RGL_fixpt_op_homo_dual: 
   assumes "is_nbd_struct N" and "is_val N I" and "u\<in> effective_fn_of (World N)"
   shows "RGL_game_sem N (I(x:=u)) (RGL_dual_free x g) = RGL_game_sem N (I(x:= dual_eff_fn N u)) g"
   using assms(2) assms(3)
@@ -1175,6 +1150,33 @@ next
          RGL_game_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) g (RGL_fml_sem N (\<lambda>a. if a = x then dual_eff_fn N u else I a) f) \<inter> s" using a
       by (smt (verit) RGL_sem_local(1,2) a3 fun_upd_other fun_upd_same)
     qed
+  qed
+qed
+
+lemma RGL_fixpt_op_homo_dual2: 
+  assumes "is_nbd_struct N" and "is_val N I"
+  shows "op_homo_dual (World N) (RGL_fixpt_op N I x g)"
+  unfolding op_homo_dual_def RGL_fixpt_op_def
+proof fix f assume a1:"f \<in> effective_fn_of (World N)"
+  from RGL_fixpt_op_homo_dual[where N="N" and I="I" and x="x" and u="f" and g="g"] assms a1
+  show "RGL_game_sem N (I(x := Util.dual_eff_fn (World N) f)) g = Util.dual_eff_fn (World N) (RGL_game_sem N (I(x := f)) g)"
+    unfolding Semantics.dual_eff_fn_def 
+qed
+
+
+lemma RGL_DRec_sem: "RGL_game_sem N I (RGL_DRec x g) =  Gfp (World N) (RGL_fixpt_op N I x g)"
+  unfolding RGL_DRec_def dual_eff_fn_def
+proof fix A show "RGL_game_sem N I (RGL_Dual (RGL_Rec x (RGL_Dual (RGL_dual_free x g)))) A = Gfp (World N) (RGL_fixpt_dual_op N I x g) A"
+    apply simp
+    unfolding dual_eff_fn_def
+  proof -
+    let ?LHS = "Util.dual_eff_fn (World N) (RGL_game_sem N I (RGL_Rec x (RGL_Dual (RGL_dual_free x g)))) A"
+    let ?RHS = "Gfp (World N) (RGL_fixpt_dual_op N I x g) A"
+    have "RGL_game_sem N I (RGL_Rec x (RGL_Dual (RGL_dual_free x g))) = Lfp (World N) (RGL_fixpt_op N I x (RGL_Dual (RGL_dual_free x g)))"
+      unfolding RGL_fixpt_op_def by auto
+    then have "?LHS = Util.dual_eff_fn (World N) (Lfp (World N) (RGL_fixpt_op N I x (RGL_Dual (RGL_dual_free x g)))) A" by auto
+    also have "... = Gfp (World N) (RGL_fixpt_op N I x (RGL_Dual (RGL_dual_free x g))) A"
+      using Lfp_dual_Gfp RGL_fixpt_op_homo_dual
   qed
 qed
 
