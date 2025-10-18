@@ -191,22 +191,6 @@ qed
 definition dual_op where
   "dual_op w F f = dual_eff_fn w (F (dual_eff_fn w f))"
 
-lemma dual_op_invo: "F\<in> eff_op_of w \<Longrightarrow> dual_op w (dual_op w F) = F"
-  unfolding dual_op_def eff_op_of_def op_ext_def op_of_def extension_def
-proof fix f assume a1:"F \<in> (effective_fn_of w \<rightarrow> effective_fn_of w) \<inter> {f. \<forall>x. x \<notin> effective_fn_of w \<longrightarrow> f x = undefined}"
-  show "dual_eff_fn w (dual_eff_fn w (F (dual_eff_fn w (dual_eff_fn w f)))) = F f"
-  proof (cases "f\<in> effective_fn_of w")
-    case True
-    then show ?thesis using dual_eff_fn_invo a1
-    by (metis (no_types, lifting) Int_iff PiE)
-  next
-    case False
-    then show ?thesis using a1 
-    proof - from a1 have "F (dual_eff_fn w (dual_eff_fn w f)) = undefined" 
-    qed
-  qed
-qed
-
 definition op_homo_dual where
   "op_homo_dual w F \<equiv> \<forall>f\<in> effective_fn_of w. F (dual_eff_fn w f) = dual_eff_fn w (F f)"
 
@@ -449,12 +433,6 @@ qed
 sublocale fun_comp_lattice \<subseteq> complete_lattice "\<lparr> carrier = (Pow A \<rightarrow> Pow A) \<inter> extensional (Pow A), eq = (=), le=fun_le \<rparr>"
   apply (rule complete_lattice_criterion1)
   unfolding greatest_def
-proof - 
-  show "\<forall>f\<in> Pow A \<rightarrow> Pow A. fun_le f const_A"
-    sorry
-qed
-
-
-
+  sorry
 
 end
