@@ -447,13 +447,40 @@ datatype 'a FLC_fml =
   | FLC_mu 'a "'a FLC_fml"
   | FLC_nu 'a "'a FLC_fml"
 
-datatype LStar_fml = 
-  LStar_Id
-  | LStar_Atm_fml "Atm_fml"
-  | LStar_Not "LStar_fml"
-  | LStar_Or "LStar_fml" "LStar_fml"
-  | LStar_Mod "Atm_game" "LStar_fml"
-  | LStar_Chop "LStar_fml" "LStar_fml"
-  | LStar_Star "LStar_fml"
+fun FLC_sy_comp ::"'a FLC_fml \<Rightarrow> 'a FLC_fml" where
+  "FLC_sy_comp (FLC_Atm_fml f) = FLC_Not f"
+|   "FLC_sy_comp (FLC_Not f) = FLC_Atm_fml f"
+|   "FLC_sy_comp (FLC_Var x) = FLC_Var x"
+|   "FLC_sy_comp (FLC_Or f1 f2) = FLC_And (FLC_sy_comp f1) (FLC_sy_comp f2)"
+|   "FLC_sy_comp (FLC_And f1 f2) = FLC_Or (FLC_sy_comp f1) (FLC_sy_comp f2)"
+|   "FLC_sy_comp (FLC_Mod_Exist a f) = FLC_Mod_Forall a (FLC_sy_comp f)"
+|   "FLC_sy_comp (FLC_Mod_Forall a f) = FLC_Mod_Exist a (FLC_sy_comp f)"
+|   "FLC_sy_comp (FLC_mu x f) = FLC_nu x (FLC_sy_comp f)"
+|   "FLC_sy_comp (FLC_nu x f) = FLC_mu x (FLC_sy_comp f)"
+
+definition Star where
+  "Star x \<phi> = FLC_mu x (FLC_Or FLC_Id (FLC_Chop \<phi> (FLC_Var x)))"
+
+primrec FLC_free_var:: "'a FLC_fml \<Rightarrow> 'a set" where
+  "FLC_free_var (FLC_Id) = {}"
+| "FLC_free_var (FLC_Atm_fml f) = {}"
+| "FLC_free_var (FLC_Not f) = {}"
+| "FLC_free_var (FLC_Var x) = {x}"
+| "FLC_free_var (FLC_Or f1 f2) = FLC_free_var f1 \<union> FLC_free_var f2"
+| "FLC_free_var (FLC_And f1 f2) = FLC_free_var f1 \<union> FLC_free_var f2"
+| "FLC_free_var (FLC_Chop f1 f2) = FLC_free_var f1 \<union> FLC_free_var f2"
+| "FLC_free_var (FLC_Mod_Exist a f) = FLC_free_var f"
+| "FLC_free_var (FLC_Mod_Forall a f) = FLC_free_var f"
+| "FLC_free_var (FLC_mu x f) = FLC_free_var f - {x}"
+| "FLC_free_var (FLC_nu x f) = FLC_free_var f - {x}"
+
+inductive L_Star :: "'a FLC_fml \<Rightarrow> bool" where
+  "L_Star (FLC_Id)"
+| "L_Star (FLC_Atm_fml f)"
+| "L_Star f \<Longrightarrow> L_Star (FLC_sy_comp f)"
+| "L_Star f \<Longrightarrow> L_Star g \<Longrightarrow> L_Star (FLC_Or f g)"
+| "L_Star f \<Longrightarrow> L_Star (FLC_Mod_Exist a f)"
+| "L_Star f \<Longrightarrow> L_Star g \<Longrightarrow> L_Star (FLC_Chop f g)"
+| "L_Star f \<Longrightarrow> x \<notin> FLC_free_var f \<Longrightarrow> L_Star (Star x f)"
 
 end

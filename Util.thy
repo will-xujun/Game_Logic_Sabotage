@@ -391,6 +391,91 @@ proof -
   by (smt (verit, ccfv_threshold) ambient_inter_def in_mono mem_Collect_eq)
 qed
 
+definition eff_fn_union where "eff_fn_union f g A = f A \<union> g A"
+
+definition eff_fn_inter where "eff_fn_inter f g A = f A \<inter> g A"
+
+lemma eff_fn_union_eff: "f\<in> effective_fn_of w \<Longrightarrow> g\<in> effective_fn_of w \<Longrightarrow> eff_fn_union f g\<in>effective_fn_of w"
+  using eff_union_eff unfolding eff_fn_union_def by auto
+
+lemma eff_fn_inter_eff: "f\<in> effective_fn_of w \<Longrightarrow> g\<in> effective_fn_of w \<Longrightarrow> eff_fn_inter f g\<in>effective_fn_of w"
+  using eff_inter_eff unfolding eff_fn_inter_def by auto
+
+definition op_union where "op_union F1 F2 f = eff_fn_union (F1 f) (F2 f)"
+
+definition op_inter where "op_inter F1 F2 f = eff_fn_inter (F1 f) (F2 f)"
+
+definition op_compo where "op_compo F2 F1 f = F2 (F1 f)"
+
+lemma monotone_op_union_monotone: "f\<in> monotone_op_of w \<Longrightarrow> g\<in> monotone_op_of w \<Longrightarrow> op_union f g\<in> monotone_op_of w"
+  unfolding monotone_op_of_def apply simp
+proof
+  assume a1:"f \<in> effective_fn_of w \<rightarrow> effective_fn_of w \<and> (\<forall>g1\<in>effective_fn_of w. \<forall>g2\<in>effective_fn_of w. fun_le g1 g2 \<longrightarrow> fun_le (f g1) (f g2))"
+  and a2:"g \<in> effective_fn_of w \<rightarrow> effective_fn_of w \<and> (\<forall>g1\<in>effective_fn_of w. \<forall>g2\<in>effective_fn_of w. fun_le g1 g2 \<longrightarrow> fun_le (g g1) (g g2))"
+  show "op_union f g \<in> effective_fn_of w \<rightarrow> effective_fn_of w" unfolding op_union_def apply auto
+    using a1 a2 eff_fn_union_eff by blast
+next
+  assume a1:"f \<in> effective_fn_of w \<rightarrow> effective_fn_of w \<and> (\<forall>g1\<in>effective_fn_of w. \<forall>g2\<in>effective_fn_of w. fun_le g1 g2 \<longrightarrow> fun_le (f g1) (f g2))"
+  and a2:"g \<in> effective_fn_of w \<rightarrow> effective_fn_of w \<and> (\<forall>g1\<in>effective_fn_of w. \<forall>g2\<in>effective_fn_of w. fun_le g1 g2 \<longrightarrow> fun_le (g g1) (g g2))"
+  show "\<forall>g1\<in>effective_fn_of w. \<forall>g2\<in>effective_fn_of w. fun_le g1 g2 \<longrightarrow> fun_le (op_union f g g1) (op_union f g g2)"
+    using a1 a2 unfolding op_union_def eff_fn_union_def fun_le_def by blast
+qed
+
+lemma monotone_op_inter_monotone: "f\<in> monotone_op_of w \<Longrightarrow> g\<in> monotone_op_of w \<Longrightarrow> op_inter f g\<in> monotone_op_of w"
+  unfolding monotone_op_of_def apply simp
+proof
+  assume a1:"f \<in> effective_fn_of w \<rightarrow> effective_fn_of w \<and> (\<forall>g1\<in>effective_fn_of w. \<forall>g2\<in>effective_fn_of w. fun_le g1 g2 \<longrightarrow> fun_le (f g1) (f g2))"
+  and a2:"g \<in> effective_fn_of w \<rightarrow> effective_fn_of w \<and> (\<forall>g1\<in>effective_fn_of w. \<forall>g2\<in>effective_fn_of w. fun_le g1 g2 \<longrightarrow> fun_le (g g1) (g g2))"
+  show "op_inter f g \<in> effective_fn_of w \<rightarrow> effective_fn_of w" unfolding op_inter_def apply auto
+    using a1 a2 eff_fn_inter_eff by blast
+next
+  assume a1:"f \<in> effective_fn_of w \<rightarrow> effective_fn_of w \<and> (\<forall>g1\<in>effective_fn_of w. \<forall>g2\<in>effective_fn_of w. fun_le g1 g2 \<longrightarrow> fun_le (f g1) (f g2))"
+  and a2:"g \<in> effective_fn_of w \<rightarrow> effective_fn_of w \<and> (\<forall>g1\<in>effective_fn_of w. \<forall>g2\<in>effective_fn_of w. fun_le g1 g2 \<longrightarrow> fun_le (g g1) (g g2))"
+  show "\<forall>g1\<in>effective_fn_of w. \<forall>g2\<in>effective_fn_of w. fun_le g1 g2 \<longrightarrow> fun_le (op_inter f g g1) (op_inter f g g2)"
+    using a1 a2 unfolding op_inter_def eff_fn_inter_def fun_le_def by blast
+qed
+
+lemma monotone_op_compo_monotone: "f\<in> monotone_op_of w \<Longrightarrow> g\<in> monotone_op_of w \<Longrightarrow> op_compo g f\<in> monotone_op_of w"
+  unfolding monotone_op_of_def apply simp
+proof
+  assume a1:"f \<in> effective_fn_of w \<rightarrow> effective_fn_of w \<and> (\<forall>g1\<in>effective_fn_of w. \<forall>g2\<in>effective_fn_of w. fun_le g1 g2 \<longrightarrow> fun_le (f g1) (f g2))"
+  and a2:"g \<in> effective_fn_of w \<rightarrow> effective_fn_of w \<and> (\<forall>g1\<in>effective_fn_of w. \<forall>g2\<in>effective_fn_of w. fun_le g1 g2 \<longrightarrow> fun_le (g g1) (g g2))"
+  show "op_compo g f \<in> effective_fn_of w \<rightarrow> effective_fn_of w" unfolding op_compo_def apply auto
+    using a1 a2 by auto
+next
+  assume a1:"f \<in> effective_fn_of w \<rightarrow> effective_fn_of w \<and> (\<forall>g1\<in>effective_fn_of w. \<forall>g2\<in>effective_fn_of w. fun_le g1 g2 \<longrightarrow> fun_le (f g1) (f g2))"
+  and a2:"g \<in> effective_fn_of w \<rightarrow> effective_fn_of w \<and> (\<forall>g1\<in>effective_fn_of w. \<forall>g2\<in>effective_fn_of w. fun_le g1 g2 \<longrightarrow> fun_le (g g1) (g g2))"
+  show "\<forall>g1\<in>effective_fn_of w. \<forall>g2\<in>effective_fn_of w. fun_le g1 g2 \<longrightarrow> fun_le (op_compo g f g1) (op_compo g f g2)"
+    using a1 a2 unfolding op_compo_def compo_def fun_le_def
+  by blast
+qed
+
+
+lemma compo_preserve_le: assumes a1:"f1\<in>effective_fn_of w" and a2:"g1\<in>effective_fn_of w" and a3:"f2\<in>effective_fn_of w"
+  and a4:"g2\<in>effective_fn_of w" and a5:"fun_le f1 g1" and a6:"fun_le f2 g2"
+  shows "fun_le (compo (Pow w) f2 f1) (compo (Pow w) g2 g1)" unfolding fun_le_def compo_def apply simp apply rule
+proof fix x
+  assume ass:"x\<subseteq>w"
+  have b1:"f1 x \<subseteq> w" using a1 unfolding effective_fn_of_def carrier_of_def using ass by auto
+  have b2:"g1 x \<subseteq> w" using a2 unfolding effective_fn_of_def carrier_of_def using ass by auto
+  from a5 have b3:"f1 x\<subseteq> g1 x" unfolding fun_le_def by simp
+  from a6 have b4:"f2 (f1 x) \<subseteq> g2 (f1 x)" unfolding fun_le_def by simp
+
+  have b5:"g2 (f1 x) \<subseteq> g2 (g1 x)" using b3 a4 b1 b2 unfolding effective_fn_of_def mono_of_def by auto
+  show "f2 (f1 x) \<subseteq> g2 (g1 x)" using b4 b5 by auto
+qed
+
+lemma Gfp_carrier:"Gfp w F \<in> carrier_of w"
+
+
+lemma Gfp_mono:"Gfp w F \<in> mono_of w"
+
+
+lemma Gfp_eff:"Gfp w F \<in> effective_fn_of w"
+
+
+
+
 \<comment>\<open>locale-based implementation\<close>
 locale fun_comp_lattice =
   fixes A :: "'a set"
