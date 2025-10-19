@@ -31,6 +31,7 @@ lemma FLC_mu_sem: "FLC_sem N I (FLC_mu x f) = Lfp (World N) (FLC_fixpt_op N I x 
 lemma FLC_nu_sem: "FLC_sem N I (FLC_nu x f) = Gfp (World N) (FLC_fixpt_op N I x f)"
   unfolding FLC_fixpt_op_def by auto
 
+(* FLC interpretation of any term is an effective function. *)
 lemma FLC_sem_wd: assumes "is_nbd_struct N" and "is_val N I"
   shows "FLC_sem N I f \<in> effective_fn_of (World N)"
   using assms
@@ -104,5 +105,11 @@ next
   case (FLC_nu x1 f)
   then show ?case sorry
 qed
+
+(* Lemma 4.1. FLC fixpt operator is monotone. *)
+
+
+
+(* syntactic negation of FLC formulas. *)
 
 end
