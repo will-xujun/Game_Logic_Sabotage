@@ -269,6 +269,20 @@ definition Gfp_family :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<
 definition Gfp :: "'a set \<Rightarrow> (('a set \<Rightarrow> 'a set) \<Rightarrow> ('a set \<Rightarrow> 'a set)) \<Rightarrow> ('a set \<Rightarrow> 'a set)" where
   "Gfp w F a = (if a\<subseteq>w then \<Union>{\<phi> a | \<phi>. \<phi>\<in> Gfp_family w F} else undefined)"
 
+definition con_eff where
+  "con_eff w A a = (if a\<subseteq>w then A else undefined)"
+
+lemma con_eff_eff: "A\<subseteq>w \<Longrightarrow> con_eff w A \<in> effective_fn_of w"
+  unfolding con_eff_def effective_fn_of_def carrier_of_def
+  extension_def mono_of_def by simp
+
+definition id_eff where
+  "id_eff w a = (if a\<subseteq>w then a else undefined)"
+
+lemma id_eff_eff:"id_eff w \<in> effective_fn_of w"
+  unfolding id_eff_def effective_fn_of_def carrier_of_def mono_of_def extension_def
+    id_eff_def by simp
+
 definition eff_fn_fam_dual_closed where
   "eff_fn_fam_dual_closed w F \<equiv> \<forall>x\<in>F. (dual_eff_fn w x) \<in> F"
 
