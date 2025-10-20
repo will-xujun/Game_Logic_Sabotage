@@ -1543,4 +1543,9 @@ next
   show "RGL_gm_nodual x h" using assms by simp
 qed
 
+(* f an RGL formula, f is "equivalent to" its normal form. RGL_sem f = RGL_sem (normalise f)
+   definition normalise :: "" where ...
+  
+  *)
+
 end

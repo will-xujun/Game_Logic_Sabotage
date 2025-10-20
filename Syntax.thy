@@ -176,18 +176,18 @@ fun RGL_sy_dual :: "'c RGL_game \<Rightarrow> 'c RGL_game"
   | "RGL_sy_comp (RGL_Mod g f) = RGL_Mod (RGL_sy_dual g) (RGL_sy_comp f)"
 
 \<comment>\<open>reduces RGL fml and game to normal form, using syntactic dual and comp.\<close>
-fun RGL_red_game :: "'c RGL_game \<Rightarrow> 'c RGL_game"
-and RGL_red_fml :: "'c RGL_fml \<Rightarrow> 'c RGL_fml" where
-    "RGL_red_game (RGL_Dual g) = RGL_sy_dual g"
-  | "RGL_red_game (RGL_Test f) = RGL_Test (RGL_red_fml f)"
-  | "RGL_red_game (RGL_Choice g1 g2) = RGL_Choice (RGL_red_game g1) (RGL_red_game g2)"
-  | "RGL_red_game (RGL_Seq g1 g2) = RGL_Seq (RGL_red_game g1) (RGL_red_game g2)"
-  | "RGL_red_game (RGL_Rec x g) = RGL_Rec x (RGL_red_game g)"
-  | "RGL_red_game g = g"
-  | "RGL_red_fml (RGL_Not f) = RGL_sy_comp f"
-  | "RGL_red_fml (RGL_Or f1 f2) = RGL_Or (RGL_red_fml f1) (RGL_red_fml f2)"
-  | "RGL_red_fml (RGL_Mod g f) = RGL_Mod (RGL_red_game g) (RGL_red_fml f)"
-  | "RGL_red_fml (RGL_Atm_fml P) = RGL_Atm_fml P"
+fun RGL_normalize_game :: "'c RGL_game \<Rightarrow> 'c RGL_game"
+and RGL_normalize_fml :: "'c RGL_fml \<Rightarrow> 'c RGL_fml" where
+    "RGL_normalize_game (RGL_Dual g) = RGL_sy_dual (RGL_normalize_game g)"
+  | "RGL_normalize_game (RGL_Test f) = RGL_Test (RGL_normalize_fml f)"
+  | "RGL_normalize_game (RGL_Choice g1 g2) = RGL_Choice (RGL_normalize_game g1) (RGL_normalize_game g2)"
+  | "RGL_normalize_game (RGL_Seq g1 g2) = RGL_Seq (RGL_normalize_game g1) (RGL_normalize_game g2)"
+  | "RGL_normalize_game (RGL_Rec x g) = RGL_Rec x (RGL_normalize_game g)"
+  | "RGL_normalize_game g = g"
+  | "RGL_normalize_fml (RGL_Not f) = RGL_sy_comp f"
+  | "RGL_normalize_fml (RGL_Or f1 f2) = RGL_Or (RGL_normalize_fml f1) (RGL_normalize_fml f2)"
+  | "RGL_normalize_fml (RGL_Mod g f) = RGL_Mod (RGL_normalize_game g) (RGL_normalize_fml f)"
+  | "RGL_normalize_fml (RGL_Atm_fml P) = RGL_Atm_fml P"
 
 \<comment>\<open>collects free variables of RGL fml and games\<close>
 primrec free_var:: "'c RGL_fml \<Rightarrow> 'c set"
@@ -268,7 +268,7 @@ inductive RGL_nml_game:: "'c RGL_game \<Rightarrow> bool"
   | RGL_nml_And: "RGL_nml_fml f1 \<Longrightarrow> RGL_nml_fml f2 \<Longrightarrow> RGL_nml_fml (RGL_And f1 f2)"
   | RGL_nml_Mod: "RGL_nml_game g \<Longrightarrow> RGL_nml_fml f \<Longrightarrow> RGL_nml_fml (RGL_Mod g f)"
 
-lemma RGL_nml_game_induct [case_names RGL_nml_Atm_Game RGL_nml_Var RGL_nml_DVar RGL_nml_Test RGL_nml_DTest RGL_nml_Choice RGL_nml_DChoice RGL_nml_Seq RGL_nml_Rec RGL_nml_DRec]:
+lemma RGL_nml_game_induct [case_names rGL_nml_Atm_Game rGL_nml_Var rGL_nml_DVar rGL_nml_Test rGL_nml_DTest rGL_nml_Choice rGL_nml_DChoice rGL_nml_Seq rGL_nml_Rec rGL_nml_DRec]:
   "(\<And>a. P (RGL_Atm_Game a))
     \<Longrightarrow> (\<And>x. P (RGL_Var x))
     \<Longrightarrow> (\<And>x. P (RGL_Dual (RGL_Var x)))
@@ -283,6 +283,81 @@ lemma RGL_nml_game_induct [case_names RGL_nml_Atm_Game RGL_nml_Var RGL_nml_DVar 
   "
   by (auto simp add:Syntax.RGL_nml_game_RGL_nml_fml.inducts(1))
 
+(* Problem: Clearly if g is not normal then (sy_dual (Dual g) = g) is not normal. 
+  then normalize (Dual (Dual g')) = sy_dual (Dual g') = g' which is not normal if g' is not normal.
+  Therefore need to new normal function.
+*)
+lemma RGL_normalize_normal:
+  fixes g::"'c RGL_game"
+    and f::"'c RGL_fml"
+  shows
+  "RGL_nml_game (RGL_normalize_game g)"
+  "RGL_nml_fml (RGL_normalize_fml f)"
+proof (induction g and f)
+  case (RGL_Atm_Game x)
+  then show ?case by (simp add:RGL_nml_Atm_game)
+next
+  case (RGL_Var x)
+  then show ?case by (simp add:RGL_nml_Var)
+next
+  case (RGL_Dual g1)
+  then show ?case
+  proof (induction g1 rule:RGL_game_induct)
+    case (RGL_Atm_Game a)
+    then show ?case sorry
+  next
+    case (RGL_Var x)
+    then show ?case sorry
+  next
+    case (RGL_Dual g)
+    then show ?case sorry
+  next
+    case (RGL_Test f)
+    then show ?case sorry
+  next
+    case (RGL_Choice g11 g12)
+    then show ?case
+    proof (simp)
+      assume a1:"(RGL_nml_game (RGL_normalize_game g11) \<Longrightarrow> RGL_nml_game (RGL_sy_dual (RGL_normalize_game g11)))"
+        and a2:"(RGL_nml_game (RGL_normalize_game g12) \<Longrightarrow> RGL_nml_game (RGL_sy_dual (RGL_normalize_game g12)))"
+        and a3:"RGL_nml_game (RGL_Choice (RGL_normalize_game g11) (RGL_normalize_game g12))"
+      from a3 have a4:"RGL_nml_game (RGL_normalize_game g11)" apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
+      from a3 have a5:"RGL_nml_game (RGL_normalize_game g12)" apply cases unfolding RGL_DTest_def RGL_DChoice_def RGL_DRec_def by auto
+      show "RGL_nml_game (RGL_DChoice (RGL_sy_dual (RGL_normalize_game g11)) (RGL_sy_dual (RGL_normalize_game g12)))"
+        using a4 a5 RGL_nml_DChoice a1 a2 by auto
+    qed
+  next
+    case (RGL_Seq g1 g2)
+    then show ?case sorry
+  next
+    case (RGL_Rec x g11)
+    then show ?case sorry
+  qed
+next
+  case (RGL_Test x)
+  then show ?case sorry
+next
+  case (RGL_Choice x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Seq x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Rec x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Atm_fml x)
+  then show ?case sorry
+next
+  case (RGL_Not x)
+  then show ?case sorry
+next
+  case (RGL_Or x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Mod x1 x2)
+  then show ?case sorry
+qed
 
 (* Subgame relation over normal forms *)
 inductive RGL_subgm:: "'c RGL_game \<Rightarrow> 'c RGL_game \<Rightarrow> bool" where
@@ -333,7 +408,9 @@ lemma RGL_nml_game_nml_fml_inducts[case_names Atm Var Dvar Test Dtest Choice Dch
   using Syntax.RGL_nml_game_RGL_nml_fml.induct[of "P" "Q" "g" "f"] by auto
 
 (* nodual predicate to detect the absence of x^d. 
-  Note: does not only test for free variables. For example in rx.\<alpha>, the intention is for \<alpha> to not contain x^d. *)
+  Note: does not only test for free variables. For example in rx.\<alpha>, the intention is for \<alpha> to not contain x^d. 
+  TODO: fix a set of identifiers. POLISHING. ENUM for context.
+*)
 inductive RGL_gm_nodual:: "'c \<Rightarrow> 'c RGL_game \<Rightarrow> bool"
   and RGL_fml_nodual:: "'c \<Rightarrow> 'c RGL_fml \<Rightarrow> bool" for x where
     RGL_gm_nodual_atm: "(RGL_gm_nodual x) (RGL_Atm_Game a)"
@@ -425,7 +502,8 @@ next
     by auto
 qed
 
-
+(* Replace this to be a part (inductive predicate) of FLC grammar. e.g. Lmu_fml (FLC_Id) | Lmu_fml f \<Longrightarrow> Lmu_fml (Not FLC_Atm f) | ...
+  construct induction principle. *)
 datatype Lmu_fml = 
   Lmu_Id
   | Lmu_Atm_fml "Atm_fml"
@@ -451,6 +529,8 @@ fun FLC_sy_comp ::"'a FLC_fml \<Rightarrow> 'a FLC_fml" where
   "FLC_sy_comp (FLC_Atm_fml f) = FLC_Not f"
 |   "FLC_sy_comp (FLC_Not f) = FLC_Atm_fml f"
 |   "FLC_sy_comp (FLC_Var x) = FLC_Var x"
+|   "FLC_sy_comp (FLC_Id) = undefined"
+|   "FLC_sy_comp (FLC_Chop v va) = undefined"
 |   "FLC_sy_comp (FLC_Or f1 f2) = FLC_And (FLC_sy_comp f1) (FLC_sy_comp f2)"
 |   "FLC_sy_comp (FLC_And f1 f2) = FLC_Or (FLC_sy_comp f1) (FLC_sy_comp f2)"
 |   "FLC_sy_comp (FLC_Mod_Exist a f) = FLC_Mod_Forall a (FLC_sy_comp f)"
