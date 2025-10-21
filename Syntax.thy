@@ -720,6 +720,8 @@ lemma RGL_nml_game_nml_fml_inducts[case_names Atm Var Dvar Test Dtest Choice Dch
   "
   using Syntax.RGL_nml_game_RGL_nml_fml.induct[of "P" "Q" "g" "f"] by auto
 
+
+(* If one dualizes a nml game, which can have at most one dual, the result has at most two duals. *)
 lemma RGL_nml_dual_free__ddnml:
   "RGL_nml_game g \<Longrightarrow> RGL_ddnml_game (RGL_dual_free x g)"
   "RGL_nml_fml f \<Longrightarrow> RGL_ddnml_fml (RGL_dual_free_fml x f)"
@@ -787,7 +789,54 @@ next
   then show ?case using RGL_ddnml_Mod by auto
 qed
 
-lemma RGL_sy_dual_nml_hom:
+lemma RGL_nml_sy_dual__ddnml_Rec: 
+  assumes "RGL_nml_game g" and "RGL_nml_game (RGL_sy_dual g)" 
+  shows "RGL_ddnml_game (RGL_DRec x (RGL_dual_free x (RGL_sy_dual g)))"
+  using assms
+proof (induction g rule:RGL_nml_game_induct)
+  case (rGL_nml_Atm_Game a)
+  then show ?case using RGL_nml_DRec RGL_nml_Atm_game RGL_nml__ddnml
+    apply (cases a) by auto
+next
+  case (rGL_nml_Var y)
+  then show ?case apply (cases "x=y") 
+    using RGL_nml__ddnml RGL_ddnml_DRec RGL_ddnml_DDVar by auto
+next
+  case (rGL_nml_DVar y)
+  then show ?case apply (cases "x=y")
+    using RGL_nml__ddnml RGL_ddnml_DRec RGL_ddnml_DVar by auto
+next
+  case (rGL_nml_Test f)
+  then show ?case
+  proof (simp)
+    from rGL_nml_Test.prems(1) have "RGL_fml_closed f"
+      by (smt (verit) RGL_DChoice_def RGL_DRec_def RGL_DTest_def RGL_fml_closed_def RGL_game.distinct(15,23,31,33,35) RGL_nml_game.cases free_var_game.simps(1,4))
+    
+  qed
+next
+  case (rGL_nml_DTest f)
+  then show ?case sorry
+next
+  case (rGL_nml_Choice g1 g2)
+  then show ?case sorry
+next
+  case (rGL_nml_DChoice g1 g2)
+  then show ?case sorry
+next
+  case (rGL_nml_Seq g1 g2)
+  then show ?case sorry
+next
+  case (rGL_nml_Rec x g)
+  then show ?case sorry
+next
+  case (rGL_nml_DRec x g)
+  then show ?case sorry
+qed
+
+(* sy_dual does not preserve normality. Example: sy_dual (rx.x) = DRec x (dualize_free x (Dual x)) = DRec x (Dual (Dual x)), which is not normal.
+  The best we can ask for is ddnml.
+  *)
+lemma RGL_nml_sy_dual__ddnml:
   fixes g::"RGL_game" and f::"RGL_fml"
   shows
   "RGL_nml_game g \<Longrightarrow> RGL_ddnml_game (RGL_sy_dual g)"
@@ -806,10 +855,10 @@ next
   then show ?case by (auto simp add:RGL_ddnml_Var)
 next
   case (RGL_nml_Test f)
-  then show ?case using RGL_nml__ddnml(1) RGL_nml_DTest by force
+  then show ?case using RGL_nml__ddnml RGL_ddnml_DTest by force
 next
   case (RGL_nml_DTest f)
-  then show ?case using RGL_nml__ddnml(1) RGL_nml_Test unfolding RGL_DTest_def by simp 
+  then show ?case using RGL_nml__ddnml RGL_ddnml_Test unfolding RGL_DTest_def by simp
 next
   case (RGL_nml_Choice g1 g2)
   then show ?case by (simp add:RGL_ddnml_DChoice)
@@ -822,25 +871,25 @@ next
   then show ?case by (simp add:Syntax.RGL_ddnml_Seq)
 next
   case (RGL_nml_Rec g x)
-  then show ?case sorry (* need normal induction *)
+  then show ?case apply simp sorry (* need normal induction *)
 next
   case (RGL_nml_DRec g x)
   then show ?case sorry (* need induction *)
 next
   case (RGL_nml_Atm_fml f)
-  then show ?case using RGL_ddnml_Not_atm by simp
+  then show ?case using Syntax.RGL_ddnml_Not_atm by simp
 next
   case (RGL_nml_Not_atm f)
-  then show ?case using RGL_ddnml_Atm_fml by simp
+  then show ?case using Syntax.RGL_ddnml_Atm_fml by simp
 next
   case (RGL_nml_Or f1 f2)
-  then show ?case using RGL_ddnml_And by simp
+  then show ?case using Syntax.RGL_ddnml_And by simp
 next
   case (RGL_nml_And f1 f2)
-  then show ?case using RGL_ddnml_Or unfolding RGL_And_def by auto
+  then show ?case using Syntax.RGL_ddnml_Or unfolding RGL_And_def by auto
 next
   case (RGL_nml_Mod g f)
-  then show ?case using RGL_ddnml_Mod by auto
+  then show ?case using Syntax.RGL_ddnml_Mod by auto
 qed
 
 
