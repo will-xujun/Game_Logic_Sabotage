@@ -134,8 +134,9 @@ fun RGL_dual_free :: "'c \<Rightarrow> 'c RGL_game \<Rightarrow> 'c RGL_game"
 | "RGL_dual_free_fml x (RGL_Or f1 f2)  = RGL_Or (RGL_dual_free_fml x f1) (RGL_dual_free_fml x f2)"
 | "RGL_dual_free_fml x (RGL_Mod g f) = RGL_Mod (RGL_dual_free x g) (RGL_dual_free_fml x f)"
 
-\<comment>\<open>detects all free instances of x^d and replaces it by x, through pattern matching in the Dual case.
-  Does not reduce double duals.\<close>
+
+(*detects all free instances of x^d and replaces it by x, through pattern matching in the Dual case.
+  Does not reduce double duals.*)
 fun RGL_undual_free :: "'c \<Rightarrow> 'c RGL_game \<Rightarrow> 'c RGL_game"
   and RGL_undual_free_fml :: "'c \<Rightarrow> 'c RGL_fml \<Rightarrow> 'c RGL_fml" where
   "RGL_undual_free x (RGL_Var y) = (RGL_Var y)"
@@ -184,12 +185,114 @@ and RGL_normalize_fml :: "'c RGL_fml \<Rightarrow> 'c RGL_fml" where
   | "RGL_normalize_game (RGL_Seq g1 g2) = RGL_Seq (RGL_normalize_game g1) (RGL_normalize_game g2)"
   | "RGL_normalize_game (RGL_Rec x g) = RGL_Rec x (RGL_normalize_game g)"
   | "RGL_normalize_game g = g"
-  | "RGL_normalize_fml (RGL_Not f) = RGL_sy_comp f"
+  | "RGL_normalize_fml (RGL_Not f) = RGL_sy_comp (RGL_normalize_fml f)"
   | "RGL_normalize_fml (RGL_Or f1 f2) = RGL_Or (RGL_normalize_fml f1) (RGL_normalize_fml f2)"
   | "RGL_normalize_fml (RGL_Mod g f) = RGL_Mod (RGL_normalize_game g) (RGL_normalize_fml f)"
   | "RGL_normalize_fml (RGL_Atm_fml P) = RGL_Atm_fml P"
 
-\<comment>\<open>collects free variables of RGL fml and games\<close>
+(* RGL_dual_free is almost involution except there is x^d^d left unreduced.
+  A call of "normalize" reduces this form.
+ *)
+lemma RGL_dual_free_invo:
+  fixes g:: "'c RGL_game" and f::"'c RGL_fml"
+  shows "RGL_normalize_game (RGL_dual_free x (RGL_dual_free x g)) = RGL_normalize_game g"
+        "RGL_normalize_fml (RGL_dual_free_fml x (RGL_dual_free_fml x f)) = RGL_normalize_fml f"
+  by (induction g and f) auto
+
+lemma RGL_sy_dual_normalize:
+  fixes g::"'c RGL_game"
+  shows "RGL_sy_dual (RGL_sy_dual (RGL_normalize_game g)) = RGL_normalize_game g"
+proof (induction g rule:RGL_game_induct)
+  case (RGL_Atm_Game a)
+  then show ?case by (cases a) (auto)
+next
+  case (RGL_Var x)
+  then show ?case by auto
+next
+  case (RGL_Dual g1)
+  then show ?case apply simp
+next
+  case (RGL_Test f)
+  then show ?case sorry
+next
+  case (RGL_Choice g1 g2)
+  then show ?case sorry
+next
+  case (RGL_Seq g1 g2)
+  then show ?case sorry
+next
+  case (RGL_Rec x g)
+  then show ?case sorry
+qed
+  
+
+
+lemma RGL_sy_dual_normalize_comm:
+  fixes g::"'c RGL_game"
+  shows "RGL_normalize_game (RGL_sy_dual g) = RGL_sy_dual (RGL_normalize_game g)"
+proof (induction g rule:RGL_game_induct)
+  case (RGL_Atm_Game a)
+  then show ?case by (cases a) (auto)
+next
+  case (RGL_Var x)
+  then show ?case by auto
+next
+  case (RGL_Dual g1)
+  then show ?case apply auto
+next
+  case (RGL_Test f)
+  then show ?case sorry
+next
+  case (RGL_Choice g1 g2)
+  then show ?case sorry
+next
+  case (RGL_Seq g1 g2)
+  then show ?case sorry
+next
+  case (RGL_Rec x g)
+  then show ?case sorry
+qed
+
+lemma RGL_sy_dual_invo:
+  fixes g:: "'c RGL_game" and f::"'c RGL_fml"
+  shows "RGL_normalize_game (RGL_sy_dual (RGL_sy_dual g)) = RGL_normalize_game g"
+        "RGL_normalize_fml (RGL_sy_comp (RGL_sy_comp f)) = RGL_normalize_fml f"
+proof (induction g and f)
+  case (RGL_Atm_Game x)
+  then show ?case by (cases x) (auto)
+next
+  case (RGL_Var x)
+  then show ?case by auto
+next
+  case (RGL_Dual g1)
+  then show ?case apply simp 
+next
+  case (RGL_Test x)
+  then show ?case sorry
+next
+  case (RGL_Choice x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Seq x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Rec x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Atm_fml x)
+  then show ?case sorry
+next
+  case (RGL_Not x)
+  then show ?case sorry
+next
+  case (RGL_Or x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Mod x1 x2)
+  then show ?case sorry
+qed
+
+(*Collects free variables of terms*)
 primrec free_var:: "'c RGL_fml \<Rightarrow> 'c set"
   and free_var_game :: "'c RGL_game \<Rightarrow> 'c set" where
   "free_var (RGL_Atm_fml f) = {}"
@@ -309,8 +412,8 @@ next
     case (RGL_Var x)
     then show ?case sorry
   next
-    case (RGL_Dual g)
-    then show ?case sorry
+    case (RGL_Dual g11)
+    then show ?case 
   next
     case (RGL_Test f)
     then show ?case sorry
