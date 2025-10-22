@@ -482,9 +482,10 @@ notation RGL_ddrel_gm_rt (infix "\<sim>\<^sub>g" 50)
 notation RGL_ddrel_fml_rt (infix "\<sim>\<^sub>f" 50)
 
 lemma RGL_sym: fixes g1::"RGL_game" and g2::"RGL_game" and f1::"RGL_fml" and f2::"RGL_fml"
-  shows "g1 \<sim>\<^sub>g g2 \<longrightarrow> g2 \<sim>\<^sub>g g1 \<and> f1 \<sim>\<^sub>f f2 \<longrightarrow> f2 \<sim>\<^sub>f f1"
-  thm RGL_ddrel_gm_RGL_ddrel_fml.induct[where ?x1.0="g1" and ?x2.0="g2" and ?x3.0="f1" and ?x4.0="f2"]
-proof (induction rule:RGL_ddrel_gm_RGL_ddrel_fml.induct[where ?x1.0="g1" and ?x2.0="g2" and ?x3.0="f1" and ?x4.0="f2"])
+  shows "RGL_ddrel_gm g1 g2 \<longrightarrow> RGL_ddrel_gm g2 g1 \<and> RGL_ddrel_fml f1 f2 \<longrightarrow> RGL_ddrel_fml f2 f1"
+  thm RGL_ddrel_gm_RGL_ddrel_fml.induct[where ?x1.0="g1" and ?x2.0="g2" and ?x3.0="f1" and ?x4.0="f2"and ?P1.0="\<lambda>g1 g2. g2 \<sim>\<^sub>g g1" and ?P2.0="\<lambda>g1 g2. RGL_ddrel_fml g2 g1"]
+proof (induction rule:RGL_ddrel_gm_RGL_ddrel_fml.induct[where ?x1.0="g1" and ?x2.0="g2" and ?x3.0="f1" and ?x4.0="f2"
+      and ?P1.0="\<lambda>g1 g2. RGL_ddrel_gm g2 g1" and ?P2.0="\<lambda>g1 g2. RGL_ddrel_fml g2 g1"])
 
 (* RGL_dual_free is almost an involution except x^d^d is left unreduced. *)
 lemma RGL_dual_free_invo_dd:
