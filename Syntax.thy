@@ -200,7 +200,11 @@ fun RGL_undual_free :: "ident \<Rightarrow> RGL_game \<Rightarrow> RGL_game"
 | "RGL_undual_free_fml x (RGL_Or f1 f2) = RGL_Or (RGL_undual_free_fml x f1) (RGL_undual_free_fml x f2)"
 | "RGL_undual_free_fml x (RGL_Not f) = RGL_Not (RGL_undual_free_fml x f)"
 | "RGL_undual_free_fml x (RGL_Atm_fml P) = RGL_Atm_fml P"
-  
+
+
+(* this function traverses the recursive structure and applies Dual at the bottom (Atomic /Var).
+  This is achieved using pattern matching on the Dual case.
+*)
 fun RGL_sy_dual :: " RGL_game \<Rightarrow> RGL_game" 
   and RGL_sy_comp ::  "RGL_fml \<Rightarrow> RGL_fml" where
     "RGL_sy_dual (RGL_Atm_Game (Agl_gm a)) = RGL_Atm_Game (Dmn_gm a)"
@@ -218,169 +222,22 @@ fun RGL_sy_dual :: " RGL_game \<Rightarrow> RGL_game"
   | "RGL_sy_comp (RGL_Or f1 f2) = RGL_And (RGL_sy_comp f1) (RGL_sy_comp f2)"
   | "RGL_sy_comp (RGL_Mod g f) = RGL_Mod (RGL_sy_dual g) (RGL_sy_comp f)"
 
-\<comment>\<open>reduces RGL fml and game to normal form, using syntactic dual and comp.\<close>
+(* normalize recursively replaces all Dual by sy_dual, so that evaluation result is an n-nml form. *)
 fun RGL_normalize_game :: "RGL_game \<Rightarrow> RGL_game"
 and RGL_normalize_fml :: "RGL_fml \<Rightarrow> RGL_fml" where
-    "RGL_normalize_game (RGL_Dual g) = RGL_sy_dual (RGL_normalize_game g)"
+    "RGL_normalize_game (RGL_Dual (RGL_Choice (RGL_Dual g1) (RGL_Dual g2))) = RGL_DChoice (RGL_normalize_game g1) (RGL_normalize_game g2)"
+  | "RGL_normalize_game (RGL_Dual (RGL_Rec x (RGL_Dual g))) = RGL_DRec x (RGL_normalize_game g)"
+  | "RGL_normalize_game (RGL_Dual g) = RGL_sy_dual (RGL_normalize_game g)"
   | "RGL_normalize_game (RGL_Test f) = RGL_Test (RGL_normalize_fml f)"
   | "RGL_normalize_game (RGL_Choice g1 g2) = RGL_Choice (RGL_normalize_game g1) (RGL_normalize_game g2)"
   | "RGL_normalize_game (RGL_Seq g1 g2) = RGL_Seq (RGL_normalize_game g1) (RGL_normalize_game g2)"
   | "RGL_normalize_game (RGL_Rec x g) = RGL_Rec x (RGL_normalize_game g)"
   | "RGL_normalize_game g = g"
+  | "RGL_normalize_fml (RGL_Not (RGL_Or (RGL_Not f1) (RGL_Not f2))) = RGL_And (RGL_normalize_fml f1) (RGL_normalize_fml f2)"
   | "RGL_normalize_fml (RGL_Not f) = RGL_sy_comp (RGL_normalize_fml f)"
   | "RGL_normalize_fml (RGL_Or f1 f2) = RGL_Or (RGL_normalize_fml f1) (RGL_normalize_fml f2)"
   | "RGL_normalize_fml (RGL_Mod g f) = RGL_Mod (RGL_normalize_game g) (RGL_normalize_fml f)"
   | "RGL_normalize_fml (RGL_Atm_fml P) = RGL_Atm_fml P"
-
-(* RGL_dual_free is almost involution except there is x^d^d left unreduced.
-  A call of "normalize" reduces this form.
- *)
-lemma RGL_dual_free_invo:
-  fixes g:: "RGL_game" and f::"RGL_fml"
-  shows "RGL_normalize_game (RGL_dual_free x (RGL_dual_free x g)) = RGL_normalize_game g"
-        "RGL_normalize_fml (RGL_dual_free_fml x (RGL_dual_free_fml x f)) = RGL_normalize_fml f"
-proof (induction g and f)
-  case (RGL_Atm_Game x)
-  then show ?case by auto
-next
-  case (RGL_Var x)
-  then show ?case by auto
-next
-  case (RGL_Dual g1)
-  then show ?case
-  proof (cases "\<exists>y. g1=RGL_Var y")
-    case True
-    then show ?thesis
-    proof fix y assume "g1=RGL_Var y"
-      then show "RGL_normalize_game (RGL_dual_free x (RGL_dual_free x (RGL_Dual g1))) = RGL_normalize_game (RGL_Dual g1)"
-        by simp
-    qed
-  next
-    case False
-    then show ?thesis
-    proof - assume ass:"\<nexists>y. g1 = RGL_Var y"
-      have "RGL_dual_free x (RGL_Dual g1) = RGL_Dual (RGL_dual_free x g1)" using ass
-        by (metis RGL_dual_free.simps(3,4,5,6,7,8) RGL_game.exhaust)
-      have "\<nexists>y. RGL_dual_free x g1 = RGL_Dual (RGL_Var y)"
-      show "RGL_normalize_game (RGL_dual_free x (RGL_dual_free x (RGL_Dual g1))) = RGL_normalize_game (RGL_Dual g1)"
-    qed
-  qed
-next
-  case (RGL_Test x)
-  then show ?case by auto
-next
-  case (RGL_Choice x1 x2)
-  then show ?case by auto
-next
-  case (RGL_Seq x1 x2)
-  then show ?case by auto
-next
-  case (RGL_Rec x1 x2)
-  then show ?case by auto
-next
-  case (RGL_Atm_fml x)
-  then show ?case by auto
-next
-  case (RGL_Not x)
-  then show ?case by auto
-next
-  case (RGL_Or x1 x2)
-  then show ?case by auto
-next
-  case (RGL_Mod x1 x2)
-  then show ?case by auto
-qed
-
-lemma RGL_sy_dual_normalize:
-  fixes g::"RGL_game"
-  shows "RGL_sy_dual (RGL_sy_dual (RGL_normalize_game g)) = RGL_normalize_game g"
-proof (induction g rule:RGL_game_induct)
-  case (RGL_Atm_Game a)
-  then show ?case by (cases a) (auto)
-next
-  case (RGL_Var x)
-  then show ?case by auto
-next
-  case (RGL_Dual g1)
-  then show ?case apply simp
-next
-  case (RGL_Test f)
-  then show ?case sorry
-next
-  case (RGL_Choice g1 g2)
-  then show ?case sorry
-next
-  case (RGL_Seq g1 g2)
-  then show ?case sorry
-next
-  case (RGL_Rec x g)
-  then show ?case sorry
-qed
-
-lemma RGL_sy_dual_normalize_comm:
-  fixes g::"RGL_game"
-  shows "RGL_normalize_game (RGL_sy_dual g) = RGL_sy_dual (RGL_normalize_game g)"
-proof (induction g rule:RGL_game_induct)
-  case (RGL_Atm_Game a)
-  then show ?case by (cases a) (auto)
-next
-  case (RGL_Var x)
-  then show ?case by auto
-next
-  case (RGL_Dual g1)
-  then show ?case apply auto
-next
-  case (RGL_Test f)
-  then show ?case sorry
-next
-  case (RGL_Choice g1 g2)
-  then show ?case sorry
-next
-  case (RGL_Seq g1 g2)
-  then show ?case sorry
-next
-  case (RGL_Rec x g)
-  then show ?case sorry
-qed
-
-lemma RGL_sy_dual_invo:
-  fixes g:: "RGL_game" and f::"RGL_fml"
-  shows "RGL_normalize_game (RGL_sy_dual (RGL_sy_dual g)) = RGL_normalize_game g"
-        "RGL_normalize_fml (RGL_sy_comp (RGL_sy_comp f)) = RGL_normalize_fml f"
-proof (induction g and f)
-  case (RGL_Atm_Game x)
-  then show ?case by (cases x) (auto)
-next
-  case (RGL_Var x)
-  then show ?case by auto
-next
-  case (RGL_Dual g1)
-  then show ?case apply simp 
-next
-  case (RGL_Test x)
-  then show ?case sorry
-next
-  case (RGL_Choice x1 x2)
-  then show ?case sorry
-next
-  case (RGL_Seq x1 x2)
-  then show ?case sorry
-next
-  case (RGL_Rec x1 x2)
-  then show ?case sorry
-next
-  case (RGL_Atm_fml x)
-  then show ?case sorry
-next
-  case (RGL_Not x)
-  then show ?case sorry
-next
-  case (RGL_Or x1 x2)
-  then show ?case sorry
-next
-  case (RGL_Mod x1 x2)
-  then show ?case sorry
-qed
 
 (*Collects free variables of terms*)
 primrec free_var:: "RGL_fml \<Rightarrow> ident set"
@@ -594,11 +451,194 @@ next
   case (RGL_nml_Mod g f)
   then show ?case using RGL_ddnml_Mod by auto
 qed
-  
+
+
+(* This relation expresses that two games are either the same, or
+  differ at the variable level by exactly two Dual constructors (no restriction on which variables differ).
+  Its rtclosure is symmetric by an easy induction, because we have varl and varr.
+  RGL_ddrel_fml plays an auxiliary role.
+ *)
+inductive RGL_ddrel_gm::"RGL_game \<Rightarrow> RGL_game \<Rightarrow> bool"
+  and RGL_ddrel_fml:: "RGL_fml \<Rightarrow> RGL_fml \<Rightarrow> bool" where
+  RGL_ddgm_varl: "RGL_ddrel_gm (RGL_Var x) (RGL_Dual (RGL_Dual (RGL_Var x)))"
+| RGL_ddgm_varr: "RGL_ddrel_gm (RGL_Dual (RGL_Dual (RGL_Var x))) (RGL_Var x)"
+| RGL_ddgm_choi: "RGL_ddrel_gm g1 g2 \<Longrightarrow> RGL_ddrel_gm g3 g4 \<Longrightarrow> RGL_ddrel_gm (RGL_Choice g1 g3) (RGL_Choice g2 g4)"
+| RGL_ddgm_seq: "RGL_ddrel_gm g1 g2 \<Longrightarrow> RGL_ddrel_gm g3 g4 \<Longrightarrow> RGL_ddrel_gm (RGL_Seq g1 g3) (RGL_Seq g2 g4)"
+| RGL_ddgm_dchoi: "RGL_ddrel_gm g1 g2 \<Longrightarrow> RGL_ddrel_gm g3 g4 \<Longrightarrow> RGL_ddrel_gm (RGL_DChoice g1 g3) (RGL_DChoice g2 g4)"
+| RGL_ddgm_rec: "RGL_ddrel_gm g1 g2 \<Longrightarrow> RGL_ddrel_gm (RGL_Rec x g1) (RGL_Rec x g2)"
+| RGL_ddgm_drec: "RGL_ddrel_gm g1 g2 \<Longrightarrow> RGL_ddrel_gm (RGL_DRec x g1) (RGL_DRec x g2)"
+| RGL_ddgm_tst: "RGL_ddrel_fml f1 f2 \<Longrightarrow> RGL_ddrel_gm (RGL_Test f1) (RGL_Test f2)"
+| RGL_ddgm_dtst: "RGL_ddrel_fml f1 f2 \<Longrightarrow> RGL_ddrel_gm (RGL_DTest f1) (RGL_DTest f2)"
+| RGL_ddfml_not: "RGL_ddrel_fml f1 f2 \<Longrightarrow> RGL_ddrel_fml (RGL_Not f1) (RGL_Not f2)"
+| RGL_ddfml_or: "RGL_ddrel_fml f1 f2 \<Longrightarrow> RGL_ddrel_fml f3 f4 \<Longrightarrow> RGL_ddrel_fml (RGL_Or f1 f3) (RGL_Or f2 f4)"
+| RGL_ddfml_mod: "RGL_ddrel_gm g1 g2 \<Longrightarrow> RGL_ddrel_fml f1 f2 \<Longrightarrow> RGL_ddrel_fml (RGL_Mod g1 f1) (RGL_Mod g2 f2)"
+
+definition RGL_ddrel_gm_rt where "RGL_ddrel_gm_rt = star RGL_ddrel_gm"
+
+definition RGL_ddrel_fml_rt where "RGL_ddrel_fml_rt = star RGL_ddrel_fml"
+
+notation RGL_ddrel_gm_rt (infix "\<sim>\<^sub>g" 50)
+
+notation RGL_ddrel_fml_rt (infix "\<sim>\<^sub>f" 50)
+
+lemma RGL_sym: fixes g1::"RGL_game" and g2::"RGL_game" and f1::"RGL_fml" and f2::"RGL_fml"
+  shows "g1 \<sim>\<^sub>g g2 \<longrightarrow> g2 \<sim>\<^sub>g g1 \<and> f1 \<sim>\<^sub>f f2 \<longrightarrow> f2 \<sim>\<^sub>f f1"
+  thm RGL_ddrel_gm_RGL_ddrel_fml.induct[where ?x1.0="g1" and ?x2.0="g2" and ?x3.0="f1" and ?x4.0="f2"]
+proof (induction rule:RGL_ddrel_gm_RGL_ddrel_fml.induct[where ?x1.0="g1" and ?x2.0="g2" and ?x3.0="f1" and ?x4.0="f2"])
+
+(* RGL_dual_free is almost an involution except x^d^d is left unreduced. *)
+lemma RGL_dual_free_invo_dd:
+  fixes g:: "RGL_game" and f::"RGL_fml"
+  shows "(RGL_dual_free x (RGL_dual_free x g)) \<sim>\<^sub>g g"
+        "(RGL_dual_free_fml x (RGL_dual_free_fml x f)) \<sim>\<^sub>f RGL_normalize_fml f"
+proof (induction g and f)
+  case (RGL_Atm_Game x)
+  then show ?case
+  by (simp add: RGL_ddrel_gm_rt_def)
+next
+  case (RGL_Var x)
+  then show ?case
+  by (simp add: RGL_ddgm_varr RGL_ddrel_gm_rt_def)
+next
+  case (RGL_Dual g1)
+  then show ?case
+  proof (cases "\<exists>y. g1=RGL_Var y")
+    case True
+    then show ?thesis
+    proof fix y assume "g1=RGL_Var y"
+      then show "RGL_normalize_game (RGL_dual_free x (RGL_dual_free x (RGL_Dual g1))) = RGL_normalize_game (RGL_Dual g1)"
+        by simp
+    qed
+  next
+    case False
+    then show ?thesis
+    proof - assume ass:"\<nexists>y. g1 = RGL_Var y"
+      have "RGL_dual_free x (RGL_Dual g1) = RGL_Dual (RGL_dual_free x g1)" using ass
+        by (metis RGL_dual_free.simps(3,4,5,6,7,8) RGL_game.exhaust)
+      have "\<nexists>y. RGL_dual_free x g1 = RGL_Dual (RGL_Var y)"
+      show "RGL_normalize_game (RGL_dual_free x (RGL_dual_free x (RGL_Dual g1))) = RGL_normalize_game (RGL_Dual g1)"
+    qed
+  qed
+next
+  case (RGL_Test x)
+  then show ?case by auto
+next
+  case (RGL_Choice x1 x2)
+  then show ?case by auto
+next
+  case (RGL_Seq x1 x2)
+  then show ?case by auto
+next
+  case (RGL_Rec x1 x2)
+  then show ?case by auto
+next
+  case (RGL_Atm_fml x)
+  then show ?case by auto
+next
+  case (RGL_Not x)
+  then show ?case by auto
+next
+  case (RGL_Or x1 x2)
+  then show ?case by auto
+next
+  case (RGL_Mod x1 x2)
+  then show ?case by auto
+qed
+
+lemma RGL_sy_dual_normalize:
+  fixes g::"RGL_game"
+  shows "RGL_sy_dual (RGL_sy_dual (RGL_normalize_game g)) = RGL_normalize_game g"
+proof (induction g rule:RGL_game_induct)
+  case (RGL_Atm_Game a)
+  then show ?case by (cases a) (auto)
+next
+  case (RGL_Var x)
+  then show ?case by auto
+next
+  case (RGL_Dual g1)
+  then show ?case apply simp
+next
+  case (RGL_Test f)
+  then show ?case sorry
+next
+  case (RGL_Choice g1 g2)
+  then show ?case sorry
+next
+  case (RGL_Seq g1 g2)
+  then show ?case sorry
+next
+  case (RGL_Rec x g)
+  then show ?case sorry
+qed
+
+lemma RGL_sy_dual_normalize_comm:
+  fixes g::"RGL_game"
+  shows "RGL_normalize_game (RGL_sy_dual g) = RGL_sy_dual (RGL_normalize_game g)"
+proof (induction g rule:RGL_game_induct)
+  case (RGL_Atm_Game a)
+  then show ?case by (cases a) (auto)
+next
+  case (RGL_Var x)
+  then show ?case by auto
+next
+  case (RGL_Dual g1)
+  then show ?case apply auto
+next
+  case (RGL_Test f)
+  then show ?case sorry
+next
+  case (RGL_Choice g1 g2)
+  then show ?case sorry
+next
+  case (RGL_Seq g1 g2)
+  then show ?case sorry
+next
+  case (RGL_Rec x g)
+  then show ?case sorry
+qed
+
+lemma RGL_sy_dual_invo:
+  fixes g:: "RGL_game" and f::"RGL_fml"
+  shows " RGL_sy_dual (RGL_sy_dual g) \<sim>\<^sub>g RGL_normalize_game g"
+        "RGL_normalize_fml (RGL_sy_comp (RGL_sy_comp f)) = RGL_normalize_fml f"
+proof (induction g and f)
+  case (RGL_Atm_Game x)
+  then show ?case by (cases x) (auto)
+next
+  case (RGL_Var x)
+  then show ?case by auto
+next
+  case (RGL_Dual g1)
+  then show ?case apply simp 
+next
+  case (RGL_Test x)
+  then show ?case sorry
+next
+  case (RGL_Choice x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Seq x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Rec x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Atm_fml x)
+  then show ?case sorry
+next
+  case (RGL_Not x)
+  then show ?case sorry
+next
+  case (RGL_Or x1 x2)
+  then show ?case sorry
+next
+  case (RGL_Mod x1 x2)
+  then show ?case sorry
+qed
 
 (* Problem: Clearly if g is not normal then (sy_dual (Dual g) = g) is not normal. 
   then normalize (Dual (Dual g')) = sy_dual (Dual g') = g' which is not normal if g' is not normal.
-  Therefore need to new normal function.
+  Therefore need a new normalize function.
 *)
 lemma RGL_normalize_normal:
   fixes g::"RGL_game"
@@ -835,6 +875,9 @@ qed
 
 (* sy_dual does not preserve normality. Example: sy_dual (rx.x) = DRec x (dualize_free x (Dual x)) = DRec x (Dual (Dual x)), which is not normal.
   The best we can ask for is ddnml.
+  This is due to the lack of normalization that leaves Dual unchanged.
+  normalize (DRec x (Dual (Dual x))) = normalize Dual ((Rec x (dualize x (Dual (Dual (Dual x))))))
+      = sy
   *)
 lemma RGL_nml_sy_dual__ddnml:
   fixes g::"RGL_game" and f::"RGL_fml"
