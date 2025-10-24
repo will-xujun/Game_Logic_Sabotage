@@ -211,6 +211,7 @@ fun RGL_sy_dual :: " RGL_game \<Rightarrow> RGL_game"
   | "RGL_sy_dual (RGL_Atm_Game (Dmn_gm a)) = RGL_Atm_Game (Agl_gm a)"
   | "RGL_sy_dual (RGL_Var x) = RGL_Dual (RGL_Var x)"
   | "RGL_sy_dual (RGL_Dual (RGL_Choice (RGL_Dual g1) (RGL_Dual g2))) = RGL_Choice (RGL_sy_dual g1) (RGL_sy_dual g2)"
+  | "RGL_sy_dual (RGL_Dual (RGL_Rec x (RGL_Dual g1))) = RGL_Rec x (RGL_sy_dual g1)"
   | "RGL_sy_dual (RGL_Dual g) = g"
   | "RGL_sy_dual (RGL_Test f) = RGL_DTest f"
   | "RGL_sy_dual (RGL_Choice g1 g2) = RGL_DChoice (RGL_sy_dual g1) (RGL_sy_dual g2)"
@@ -408,6 +409,59 @@ lemma RGL_nml_game_induct [case_names rGL_nml_Atm_Game rGL_nml_Var rGL_nml_DVar 
   by (auto simp add:Syntax.RGL_nml_game_RGL_nml_fml.inducts(1))
 
 
+lemma RGL_game_induct_normal_connectives:
+  "(\<And>a. P (RGL_Atm_Game a))
+    \<Longrightarrow> (\<And>x. P (RGL_Var x))
+    \<Longrightarrow> (\<And>f. P (RGL_Test f))
+    \<Longrightarrow> (\<And>f. P (RGL_DTest f))
+    \<Longrightarrow> (\<And>g1 g2. P g1 \<Longrightarrow> P g2 \<Longrightarrow> P (RGL_Choice g1 g2))
+    \<Longrightarrow> (\<And>g1 g2. P g1 \<Longrightarrow> P g2 \<Longrightarrow> P (RGL_DChoice g1 g2))
+    \<Longrightarrow> (\<And>g1 g2. P g1 \<Longrightarrow> P g2 \<Longrightarrow> P (RGL_Seq g1 g2))
+    \<Longrightarrow> (\<And>x g. P g \<Longrightarrow> P (RGL_Rec x g))
+    \<Longrightarrow> (\<And>x g. P g \<Longrightarrow> P (RGL_DRec x g))
+    \<Longrightarrow> (\<And>g. (\<forall>g1 g2. g\<noteq> RGL_Choice (RGL_Dual g1) (RGL_Dual g2)) \<Longrightarrow> (\<forall>x g1. g\<noteq>RGL_Rec x (RGL_Dual (RGL_dual_free x g1))) \<Longrightarrow> (\<forall>f. g\<noteq>RGL_Test f) \<Longrightarrow> P g \<Longrightarrow> P (RGL_Dual g))
+    \<Longrightarrow> ((\<And>g g1. g = RGL_Dual (RGL_Rec x (RGL_Dual (RGL_dual_free x g1))) \<Longrightarrow> P g \<Longrightarrow> P g1) 
+          \<Longrightarrow> (\<And>g g1 g2. g= RGL_Dual (RGL_Choice (RGL_Dual g1) (RGL_Dual g2)) \<Longrightarrow> P g \<Longrightarrow> P g1 &&& P g2) 
+          \<Longrightarrow> P \<alpha>)
+  "
+proof - fix g
+  assume ass:"\<And>g. \<forall>g1 g2. g \<noteq> RGL_Choice (RGL_Dual g1) (RGL_Dual g2) \<Longrightarrow> \<forall>x g1. g \<noteq> RGL_Rec x (RGL_Dual (RGL_dual_free x g1)) \<Longrightarrow> \<forall>f. g \<noteq> RGL_Test f \<Longrightarrow> P g \<Longrightarrow> P (RGL_Dual g)"
+     and ass1:"P g"
+     and ass_dtst:"\<And>f. P (RGL_DTest f)"
+     and ass_drec:"\<And>x g. P g \<Longrightarrow> P (RGL_DRec x g)"
+  show "P (RGL_Dual g)"
+  proof (cases "\<forall>g1 g2. g\<noteq> RGL_Choice (RGL_Dual g1) (RGL_Dual g2)")
+    case True
+    then have a:"\<forall>g1 g2. g \<noteq> RGL_Choice (RGL_Dual g1) (RGL_Dual g2)" by simp
+    then show ?thesis
+    proof (cases "\<forall>x g1. g\<noteq>RGL_Rec x (RGL_Dual (RGL_dual_free x g1))")
+      case True
+      then have b:"\<forall>x g1. g\<noteq>RGL_Rec x (RGL_Dual (RGL_dual_free x g1))" by simp
+      then show ?thesis
+      proof (cases "\<forall>f. g\<noteq>RGL_Test f")
+        case True
+        then have c:"\<forall>f. g\<noteq>RGL_Test f" by simp
+        then show ?thesis using a b c ass ass1 by auto
+      next
+        case False
+        then show ?thesis
+        proof - from False obtain f where "g=RGL_Test f" by auto
+          then show ?thesis using ass_dtst unfolding RGL_DTest_def by auto
+        qed
+      qed
+    next
+      case False
+      then show ?thesis
+      proof -from False obtain x g1 where "g = RGL_Rec x (RGL_Dual (RGL_dual_free x g1))" by auto
+        then show ?thesis using ass_drec ass1 unfolding RGL_DRec_def
+    qed    
+  next
+    case False
+    then show ?thesis sorry
+  qed
+qed
+  
+
 lemma RGL_nml__ddnml:
   "RGL_nml_game g \<Longrightarrow> RGL_ddnml_game g" 
   "RGL_nml_fml f \<Longrightarrow> RGL_ddnml_fml f"
@@ -458,6 +512,34 @@ next
   then show ?case using RGL_ddnml_Mod by auto
 qed
 
+(* This function reduces Dual (Dual x) for all x in a game g. 
+  DTest = Dual (Test .)
+  DChoice = Dual (Choice (Dual .) (Dual .))
+  DRec x g = Dual (Rec x (dualx g)) 
+  
+  pattern matching for Dual can safely reduce Dual Dual.
+*)
+fun RGL_red_dd:: "RGL_game \<Rightarrow> RGL_game"
+and RGL_red_dd_fml:: "RGL_fml \<Rightarrow> RGL_fml" where
+  "RGL_red_dd (RGL_Atm_Game a) = RGL_Atm_Game a"
+| "RGL_red_dd (RGL_Var x) = (RGL_Var x)"
+| "RGL_red_dd (RGL_Dual (RGL_Dual (RGL_Var x))) = RGL_Var x"
+| "RGL_red_dd (RGL_Dual g) = RGL_Dual (RGL_red_dd g)"
+| "RGL_red_dd (RGL_Test f) = RGL_Test (RGL_red_dd_fml f)"
+| "RGL_red_dd (RGL_Choice g1 g2) = RGL_Choice (RGL_red_dd g1) (RGL_red_dd g2)"
+| "RGL_red_dd (RGL_Seq g1 g2) = RGL_Seq (RGL_red_dd g1) (RGL_red_dd g2)"
+| "RGL_red_dd (RGL_Rec x g) = RGL_Rec x (RGL_red_dd g)"
+| "RGL_red_dd_fml (RGL_Atm_fml a) = (RGL_Atm_fml a)"
+| "RGL_red_dd_fml (RGL_Not f) = RGL_Not (RGL_red_dd_fml f)"
+| "RGL_red_dd_fml (RGL_Or f1 f2) = RGL_Or (RGL_red_dd_fml f1) (RGL_red_dd_fml f2)"
+| "RGL_red_dd_fml (RGL_Mod g f) = RGL_Mod (RGL_red_dd g) (RGL_red_dd_fml f)"
+
+definition RGL_gm_equiv :: "RGL_game \<Rightarrow> RGL_game \<Rightarrow> bool" (infix "\<simeq>\<^sub>g" 50)
+  where
+ "RGL_gm_equiv g1 g2 \<equiv> RGL_red_dd g1 = RGL_red_dd g2"
+
+definition RGL_fml_equiv:: "RGL_fml \<Rightarrow> RGL_fml \<Rightarrow> bool" (infix "\<simeq>\<^sub>f" 50)
+  where "RGL_fml_equiv f1 f2 \<equiv> RGL_red_dd_fml f1 = RGL_red_dd_fml f2"
 
 (* This relation expresses that two games are either the same, or
   differ at the variable level by exactly two Dual constructors (no restriction on which variables differ).
@@ -487,11 +569,90 @@ notation RGL_ddrel_gm_rt (infix "\<sim>\<^sub>g" 50)
 
 notation RGL_ddrel_fml_rt (infix "\<sim>\<^sub>f" 50)
 
-lemma RGL_sym: fixes g1::"RGL_game" and g2::"RGL_game" and f1::"RGL_fml" and f2::"RGL_fml"
-  shows "RGL_ddrel_gm g1 g2 \<longrightarrow> RGL_ddrel_gm g2 g1 \<and> RGL_ddrel_fml f1 f2 \<longrightarrow> RGL_ddrel_fml f2 f1"
-  thm RGL_ddrel_gm_RGL_ddrel_fml.induct[where ?x1.0="g1" and ?x2.0="g2" and ?x3.0="f1" and ?x4.0="f2"and ?P1.0="\<lambda>g1 g2. g2 \<sim>\<^sub>g g1" and ?P2.0="\<lambda>g1 g2. RGL_ddrel_fml g2 g1"]
-proof (induction rule:RGL_ddrel_gm_RGL_ddrel_fml.induct[where ?x1.0="g1" and ?x2.0="g2" and ?x3.0="f1" and ?x4.0="f2"
-      and ?P1.0="\<lambda>g1 g2. RGL_ddrel_gm g2 g1" and ?P2.0="\<lambda>g1 g2. RGL_ddrel_fml g2 g1"])
+definition sym:: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> bool" where
+  "sym R \<equiv> \<forall> a b. R a b \<longleftrightarrow> R b a"
+
+lemma sym_star__sym: "sym R \<Longrightarrow> sym (star R)"
+  unfolding sym_def 
+  apply rule
+proof fix a b assume ass:"\<forall>a b. R a b = R b a"
+  show "star R a b = star R b a" apply auto
+  proof - show "star R a b \<Longrightarrow> star R b a"
+      thm star.induct[where P="\<lambda> a b. star R b a"]
+    proof (induction rule:star.induct)
+      case (refl x)
+      then show ?case using star.refl by auto
+    next
+      case (step x y z)
+      then show ?case using ass star_step1
+      by (metis star_trans)
+  qed
+next
+  show "star R b a \<Longrightarrow> star R a b"
+  proof - show "star R b a \<Longrightarrow> star R a b"
+      thm star.induct[where P="\<lambda> a b. star R b a"]
+    proof (induction rule:star.induct)
+      case (refl x)
+      then show ?case using star.refl by auto
+    next
+      case (step x y z)
+      then show ?case using ass star_step1
+      by (metis star_trans)
+    qed    
+  qed
+  qed
+qed
+
+lemma RGL_ddrel_sym: fixes g1::"RGL_game" and g2::"RGL_game" and f1::"RGL_fml" and f2::"RGL_fml"
+  shows "(RGL_ddrel_gm g1 g2 \<longrightarrow> RGL_ddrel_gm g2 g1) \<and> (RGL_ddrel_fml f1 f2 \<longrightarrow> RGL_ddrel_fml f2 f1)"
+proof (induction rule:RGL_ddrel_gm_RGL_ddrel_fml.induct[where ?x1.0="g1"])
+  case (RGL_ddgm_varl x)
+  then show ?case using RGL_ddgm_varr by auto
+next
+  case (RGL_ddgm_varr x)
+  then show ?case using RGL_ddgm_varl by auto
+next
+  case (RGL_ddgm_choi g1 g2 g3 g4)
+  then show ?case using Syntax.RGL_ddgm_choi by auto
+next
+  case (RGL_ddgm_seq g1 g2 g3 g4)
+  then show ?case using Syntax.RGL_ddgm_seq by auto
+next
+  case (RGL_ddgm_dchoi g1 g2 g3 g4)
+  then show ?case using Syntax.RGL_ddgm_dchoi by auto
+next
+  case (RGL_ddgm_rec g1 g2 x)
+  then show ?case using Syntax.RGL_ddgm_rec by auto
+next
+  case (RGL_ddgm_drec g1 g2 x)
+  then show ?case using Syntax.RGL_ddgm_drec by auto
+next
+  case (RGL_ddgm_tst f1 f2)
+  then show ?case using Syntax.RGL_ddgm_tst by auto
+next
+  case (RGL_ddgm_dtst f1 f2)
+  then show ?case using Syntax.RGL_ddgm_dtst by auto
+next
+  case (RGL_ddfml_not f1 f2)
+  then show ?case using Syntax.RGL_ddfml_not by auto
+next
+  case (RGL_ddfml_or f1 f2 f3 f4)
+  then show ?case using Syntax.RGL_ddfml_or by auto
+next
+  case (RGL_ddfml_mod g1 g2 f1 f2)
+  then show ?case using Syntax.RGL_ddfml_mod by auto
+qed
+
+lemma RGL_ddrel_rt_sym: "(g1 \<sim>\<^sub>g g2 \<longrightarrow> g2 \<sim>\<^sub>g g1) \<and> (f1 \<sim>\<^sub>f f2 \<longrightarrow> f2 \<sim>\<^sub>f f1)"
+  using RGL_ddrel_sym sym_star__sym
+  by (metis RGL_ddrel_fml_rt_def RGL_ddrel_gm_rt_def Syntax.sym_def)
+
+
+
+
+fun RGL_gm_max_d:: "ident \<Rightarrow> RGL_game \<Rightarrow> int"
+  and RGL_fml_max_d:: "ident \<Rightarrow> RGL_fml \<Rightarrow> int" where
+
 
 (* RGL_dual_free is almost an involution except x^d^d is left unreduced. *)
 lemma RGL_dual_free_invo_dd:
@@ -835,6 +996,112 @@ next
   case (RGL_nml_Mod g f)
   then show ?case using RGL_ddnml_Mod by auto
 qed
+
+lemma RGL_nml_dx_syd__nml:
+  assumes "RGL_nml_game g"
+  shows "RGL_ddnml_game (RGL_sy_dual (RGL_dual_free x g)) \<and> RGL_ddnml_game (RGL_dual_free x (RGL_sy_dual g))"
+  using assms
+proof (induction g rule:RGL_nml_game_induct)
+  case (rGL_nml_Atm_Game a)
+  then show ?case by (cases a) (auto simp add:RGL_ddnml_Atm_game)
+next
+  case (rGL_nml_Var y)
+  then show ?case
+  proof (cases "x=y")
+    case True
+    then show ?thesis
+      using RGL_nml__ddnml RGL_ddnml_Var RGL_ddnml_DDVar by auto
+  next
+    case False
+    then show ?thesis using RGL_ddnml_DVar by auto
+  qed
+next
+  case (rGL_nml_DVar y)
+  then show ?case 
+  proof (cases "x=y")
+    case True
+    then show ?thesis using RGL_nml__ddnml RGL_nml_DVar by auto
+  next
+    case False
+    then show ?thesis
+      using RGL_ddnml_Var by auto
+  qed  
+next
+  case (rGL_nml_Test f)
+  then show ?case
+  proof (simp)
+    from rGL_nml_Test.prems have a:"RGL_nml_fml f"
+    using RGL_DChoice_def RGL_DRec_def RGL_DTest_def RGL_game.distinct(33,35) RGL_game.inject(4) RGL_game.simps(13,23) RGL_nml_game.cases by fastforce
+    from rGL_nml_Test.prems have b:"RGL_fml_closed f"
+    by (smt (verit, ccfv_SIG) RGL_DChoice_def RGL_DRec_def RGL_DTest_def RGL_fml_closed_def RGL_game.distinct(23,31,33,35) RGL_game.simps(13,23) RGL_nml_game.simps
+        free_var_game.simps(4))
+  then have a1:"RGL_dual_free_fml x f =f" using RGL_closed_dual_free_id(2) by auto
+
+  from b have b1:"RGL_game_closed (RGL_DTest f)" using RGL_fml_closed__DTest_closed_iff by auto
+  then have "RGL_dual_free x (RGL_DTest f) = RGL_DTest f" using RGL_closed_dual_free_id by auto
+  then
+    show "RGL_ddnml_game (RGL_DTest (RGL_dual_free_fml x f)) \<and> RGL_ddnml_game (RGL_dual_free x (RGL_DTest f))" 
+      using RGL_ddnml_DTest[of "f"] a a1 b RGL_nml__ddnml by auto
+  qed
+next
+  case (rGL_nml_DTest f)
+  then show ?case unfolding RGL_DTest_def
+  proof (simp)
+    from rGL_nml_DTest.prems have a:"RGL_nml_fml f"
+    using RGL_DChoice_def RGL_DRec_def RGL_DTest_def RGL_game.distinct(33,35) RGL_game.inject(4) RGL_game.simps(13,23) RGL_nml_game.cases by fastforce
+    from rGL_nml_DTest.prems have b:"RGL_fml_closed f"
+    by (smt (verit, ccfv_SIG) RGL_DChoice_def RGL_DRec_def RGL_DTest_def RGL_fml_closed__DTest_closed_iff RGL_fml_closed__test_closed_iff RGL_game.distinct(15,3,31,35)
+        RGL_game.inject(3) RGL_game.simps(21,33,35,37) RGL_nml_game.simps)
+    then have a1:"RGL_dual_free_fml x f =f" using RGL_closed_dual_free_id(2) by auto
+  
+    show "RGL_ddnml_game (RGL_Test (RGL_dual_free_fml x f))"
+      using RGL_ddnml_Test[of "f"] a1 b a RGL_nml__ddnml by auto
+  qed
+next
+  case (rGL_nml_Choice g1 g2)
+  then show ?case sorry
+next
+  case (rGL_nml_DChoice g1 g2)
+  then show ?case sorry
+next
+  case (rGL_nml_Seq g1 g2)
+  then show ?case sorry
+next
+  case (rGL_nml_Rec y g)
+  then show ?case
+  proof (cases "x=y")
+    case True
+    then show ?thesis
+    proof (simp)
+      from rGL_nml_Rec.prems have "RGL_nml_game g"
+        using rGL_nml_Rec.hyps by force
+      then have IH:"RGL_ddnml_game (RGL_sy_dual (RGL_dual_free x g)) \<and> RGL_ddnml_game (RGL_dual_free x (RGL_sy_dual g))" using rGL_nml_Rec.IH by simp
+
+      from IH True have "RGL_ddnml_game (RGL_dual_free y (RGL_sy_dual g))" by auto
+      then have r1:"RGL_ddnml_game (RGL_DRec y (RGL_dual_free y (RGL_sy_dual g)))" using RGL_ddnml_DRec by auto
+
+      have s1:"RGL_dual_free y (RGL_DRec y (RGL_dual_free y (RGL_sy_dual g))) = RGL_DRec y (RGL_dual_free y (RGL_sy_dual g))" unfolding RGL_DRec_def by simp
+      have s2:"RGL_ddnml_game (RGL_DRec y (RGL_dual_free y (RGL_sy_dual g)))" using IH True RGL_ddnml_DRec by auto
+
+      from s1 s2 have r2:"RGL_ddnml_game (RGL_dual_free y (RGL_DRec y (RGL_dual_free y (RGL_sy_dual g))))" by auto
+      show "RGL_ddnml_game (RGL_DRec y (RGL_dual_free y (RGL_sy_dual g))) \<and> RGL_ddnml_game (RGL_dual_free y (RGL_DRec y (RGL_dual_free y (RGL_sy_dual g))))"
+        using r1 r2 by simp
+    qed
+  next
+    case False
+    then show ?thesis
+    proof (simp)
+      (* We want to express that y carries at most two Duals. *)
+      show "RGL_ddnml_game (RGL_DRec y (RGL_dual_free y (RGL_sy_dual (RGL_dual_free x g)))) \<and> RGL_ddnml_game (RGL_dual_free x (RGL_DRec y (RGL_dual_free y (RGL_sy_dual g))))"
+    qed
+  qed
+  qed
+next
+  case (rGL_nml_DRec x g)
+  then show ?case sorry
+qed
+
+
 
 lemma RGL_nml_sy_dual__ddnml_Rec: 
   assumes "RGL_nml_game g" and "RGL_nml_game (RGL_sy_dual g)" 

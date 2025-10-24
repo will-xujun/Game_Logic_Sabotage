@@ -770,7 +770,7 @@ proof
 qed
 
 lemma RGL_Choice_sem: "RGL_game_sem N I (RGL_Choice g1 g2) = (\<lambda>A. (RGL_game_sem N I g1 A) \<union> (RGL_game_sem N I g2 A))"
-  by auto
+  by auto[where ?x1.0="g1"
 lemma RGL_Choice_sem_eff:
   assumes "is_nbd_struct N" and "RGL_game_sem N I g1 \<in> effective_fn_of (World N)" and "RGL_game_sem N I g2 \<in> effective_fn_of (World N)"
   shows "RGL_game_sem N I (RGL_Choice g1 g2) \<in> effective_fn_of (World N)" 
