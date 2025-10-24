@@ -74,7 +74,7 @@ datatype RGL_game =
   | RGL_Test "RGL_fml" 
   | RGL_Choice "RGL_game" "RGL_game"
   | RGL_Seq "RGL_game" "RGL_game"
-  | RGL_Rec ident "RGL_game"
+  | RGL_Rec ident "RGL_game" (* \<alpha>*   \<longrightarrow>  rx. \<alpha> \<union> x *)
 and
  RGL_fml = 
     RGL_Atm_fml "Atm_fml"
@@ -144,7 +144,7 @@ fun RGL_dual_free :: "ident \<Rightarrow> RGL_game \<Rightarrow> RGL_game"
 
 definition RGL_DRec where "RGL_DRec x g = RGL_Dual (RGL_Rec x (RGL_Dual (RGL_dual_free x g)))"
 
-lemma RGL_dual_free_vars_comm: 
+lemma RGL_dual_free_vars_comm:
   "RGL_dual_free x (RGL_dual_free y g) = RGL_dual_free y (RGL_dual_free x g)"
   "RGL_dual_free_fml x (RGL_dual_free_fml y f) = RGL_dual_free_fml y (RGL_dual_free_fml x f)"
 proof (induction g and f)
@@ -259,6 +259,12 @@ definition RGL_fml_closed :: "RGL_fml \<Rightarrow> bool" where
   "RGL_fml_closed f = (free_var f = {})"
 
 definition RGL_game_closed where "RGL_game_closed g = (free_var_game g = {})"
+
+lemma RGL_fml_closed__test_closed_iff: "RGL_fml_closed f \<longleftrightarrow> RGL_game_closed (RGL_Test f)"
+  unfolding RGL_fml_closed_def RGL_game_closed_def by auto
+
+lemma RGL_fml_closed__DTest_closed_iff: "RGL_fml_closed f \<longleftrightarrow> RGL_game_closed (RGL_DTest f)"
+  unfolding RGL_fml_closed_def RGL_game_closed_def RGL_DTest_def by auto
 
 lemma RGL_notfree_dual_free_id:
   "x\<notin> free_var_game g \<Longrightarrow> RGL_dual_free x g = g"
@@ -850,13 +856,28 @@ next
   case (rGL_nml_Test f)
   then show ?case
   proof (simp)
-    from rGL_nml_Test.prems(1) have "RGL_fml_closed f"
+    assume b1:"RGL_nml_game (RGL_Test f)" and b2:"RGL_nml_game (RGL_DTest f)"
+    from rGL_nml_Test.prems(1) have a1:"RGL_fml_closed f"
       by (smt (verit) RGL_DChoice_def RGL_DRec_def RGL_DTest_def RGL_fml_closed_def RGL_game.distinct(15,23,31,33,35) RGL_nml_game.cases free_var_game.simps(1,4))
-    
+    then have a2:"RGL_game_closed (RGL_DTest f)" using RGL_fml_closed__DTest_closed_iff by simp
+
+    from a2 have "RGL_dual_free x (RGL_DTest f) = RGL_DTest f" using RGL_closed_dual_free_id(1) by auto
+    then have "RGL_ddnml_game (RGL_dual_free x (RGL_DTest f))" using RGL_nml__ddnml(1) b2 by auto
+    then show "RGL_ddnml_game (RGL_DRec x (RGL_dual_free x (RGL_DTest f)))" using RGL_ddnml_DRec by auto
   qed
 next
   case (rGL_nml_DTest f)
-  then show ?case sorry
+  then show ?case unfolding RGL_DTest_def
+  proof (simp)
+    assume a1:"RGL_nml_game (RGL_Dual (RGL_Test f))" and a2:"RGL_nml_game (RGL_Test f)"
+    from a2 have a3:"RGL_fml_closed f"
+      by (smt (verit, ccfv_SIG) RGL_DChoice_def RGL_DRec_def RGL_fml_closed__DTest_closed_iff RGL_fml_closed__test_closed_iff RGL_game.distinct(15,23,31,33,35,5) RGL_nml_game.simps)
+    then have eq:"RGL_dual_free_fml x f = f" using RGL_closed_dual_free_id(2) by auto
+    from a1 have "RGL_nml_fml f"
+      using RGL_DChoice_def RGL_DRec_def RGL_DTest_def RGL_game.distinct(23,31,33,35) RGL_nml_game.cases by fastforce
+    then have "RGL_ddnml_game (RGL_Test f)" using RGL_nml_Test RGL_nml__ddnml(1)[of "RGL_Test f"] a3 by auto
+    then show "RGL_ddnml_game (RGL_DRec x (RGL_Test (RGL_dual_free_fml x f)))" using RGL_ddnml_DRec eq by auto
+  qed
 next
   case (rGL_nml_Choice g1 g2)
   then show ?case sorry
@@ -867,8 +888,8 @@ next
   case (rGL_nml_Seq g1 g2)
   then show ?case sorry
 next
-  case (rGL_nml_Rec x g)
-  then show ?case sorry
+  case (rGL_nml_Rec y g1)
+  then show ?case using RGL_ddnml_DRec
 next
   case (rGL_nml_DRec x g)
   then show ?case sorry

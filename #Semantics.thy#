@@ -736,6 +736,8 @@ type_synonym RGL_world_type = "RGL_ground_type world_type"
 type_synonym RGL_sub_world_type = "RGL_ground_type sub_world_type"
 type_synonym RGL_eff_fn_type = "RGL_sub_world_type \<Rightarrow> RGL_sub_world_type"
 
+
+(*g , [g]: States \<rightarrow> States. [g](A) = those states that angel has strategy to reach A *)
 \<comment>\<open>RGL semantics\<close>
 fun RGL_fml_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type RGL_fml \<Rightarrow> RGL_sub_world_type"
   and RGL_game_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<Rightarrow> RGL_var_type RGL_game \<Rightarrow> RGL_eff_fn_type"
@@ -751,7 +753,7 @@ fun RGL_fml_sem :: "RGL_ground_type Nbd_Struct \<Rightarrow> RGL_var_type val \<
 | "RGL_game_sem N I (RGL_Test fl) A = (if A \<subseteq> (World N) then (RGL_fml_sem N I fl) \<inter> A else undefined)"
 | "RGL_game_sem N I (RGL_Choice g1 g2) A = (RGL_game_sem N I g1 A) \<union> (RGL_game_sem N I g2 A)"
 | "RGL_game_sem N I (RGL_Seq g1 g2) A = compo (Pow (World N)) (RGL_game_sem N I g2) (RGL_game_sem N I g1) A"
-| "RGL_game_sem N I (RGL_Rec x g) A =  (Lfp (World N) (\<lambda>u. (RGL_game_sem N (I(x:=u)) g))) A" (* rx.g*)
+| "RGL_game_sem N I (RGL_Rec x g) A =  (Lfp (World N) (\<lambda>u. (RGL_game_sem N (I(x:=u)) g))) A" (* rx.g *)
 
 lemma RGL_Test_sem_eff: 
   assumes "is_nbd_struct N"
