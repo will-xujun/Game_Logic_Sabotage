@@ -84,6 +84,27 @@ and
 
 text \<open>Induction principles for RGL games and fmls\<close>
 
+definition RGL_is_atomic:: "RGL_game\<Rightarrow> bool" where
+"RGL_is_atomic g \<equiv> \<exists>a. g= RGL_Atm_Game a"
+
+definition RGL_is_var:: "RGL_game \<Rightarrow> bool" where
+"RGL_is_var g \<equiv> \<exists>x. g= RGL_Var x"
+
+primrec RGL_len_gm::"RGL_game \<Rightarrow> nat"
+  and RGL_len_fml:: "RGL_fml \<Rightarrow> nat" where
+  "RGL_len_gm (RGL_Atm_Game a) = 1"
+| "RGL_len_gm (RGL_Var x) = 1"
+| "RGL_len_gm (RGL_Dual g) = RGL_len_gm g + 1"
+| "RGL_len_gm (RGL_Test f) = RGL_len_fml f + 1"
+| "RGL_len_gm (RGL_Choice g1 g2) = RGL_len_gm g1 + RGL_len_gm g2 + 1"
+| "RGL_len_gm (RGL_Seq g1 g2) = RGL_len_gm g1 + RGL_len_gm g2 + 1"
+| "RGL_len_gm (RGL_Rec x g) = RGL_len_gm g + 1"
+| "RGL_len_fml (RGL_Atm_fml a) = 1"
+| "RGL_len_fml (RGL_Not f) = RGL_len_fml f + 1"
+| "RGL_len_fml (RGL_Or f1 f2) = RGL_len_fml f1 + RGL_len_fml f2 + 1"
+| "RGL_len_fml (RGL_Mod g f) = RGL_len_gm g + RGL_len_fml f + 1"
+
+
 lemma RGL_game_induct [case_names RGL_Atm_Game RGL_Var RGL_Dual RGL_Test RGL_Choice RGL_Seq RGL_Rec]:
   "(\<And>a. P (RGL_Atm_Game a))
     \<Longrightarrow> (\<And>x. P (RGL_Var x))
@@ -110,6 +131,93 @@ lemma RGL_game_induct_finer [case_names RGL_Atm_Game RGL_Var RGL_Dual RGL_Choice
     \<Longrightarrow> P \<alpha>
   "
   using RGL_game.induct[of "P" "\<lambda>x. P (RGL_Test x)" "\<alpha>"] by fastforce
+
+lemma RGL_len_geq_1: "RGL_len_gm g \<ge> 1" "RGL_len_fml f \<ge> 1"
+  by (induction g and f) (auto)
+
+lemma RGL_len_notO: "\<not> RGL_len_gm g = 0" "\<not> RGL_len_fml f = 0"
+  using RGL_len_geq_1(1)[of "g"] RGL_len_geq_1(2)[of "f"] by auto
+
+lemma RGL_len1_inversion: "RGL_len_gm g = 1 \<Longrightarrow> RGL_is_atomic g \<or> RGL_is_var g"
+proof (induction g rule:RGL_game_induct)
+  case (RGL_Atm_Game a)
+  then show ?case 
+  proof - have "RGL_is_atomic (RGL_Atm_Game a)" unfolding RGL_is_atomic_def by auto
+    then show ?thesis by auto
+  qed
+next
+  case (RGL_Var x)
+  then show ?case
+  proof - have "RGL_is_var (RGL_Var x)" unfolding RGL_is_var_def by auto
+    then show ?thesis by auto
+  qed
+next
+  case (RGL_Dual g)
+  then show ?case
+  proof - have "RGL_len_gm (RGL_Dual g) \<ge> 2" using RGL_len_geq_1 by auto
+    then have False using RGL_Dual.prems by auto
+    then show ?thesis by auto
+  qed
+next
+  case (RGL_Test f)
+  then show ?case
+  proof - have "RGL_len_gm (RGL_Test f) \<ge> 2" using RGL_len_geq_1 by auto
+    then have False using RGL_Test.prems by auto
+    then show ?thesis by auto
+  qed
+next
+  case (RGL_Choice g1 g2)
+  then show ?case
+  proof - have "RGL_len_gm (RGL_Choice g1 g2) \<ge> 2" using RGL_len_geq_1(1)[of "g1"] RGL_len_geq_1(1)[of "g2"] by auto
+    then have False using RGL_Choice.prems by auto
+    then show ?thesis by auto
+  qed
+next
+  case (RGL_Seq g1 g2)
+  then show ?case
+  proof - have "RGL_len_gm (RGL_Seq g1 g2) \<ge> 2" using RGL_len_geq_1(1)[of "g1"] RGL_len_geq_1(1)[of "g2"] by auto
+    then have False using RGL_Seq.prems by auto
+    then show ?thesis by auto
+  qed
+next
+  case (RGL_Rec x g)
+  then show ?case
+  proof - have "RGL_len_gm (RGL_Rec x g) \<ge> 2" using RGL_len_geq_1(1)[of "g"] by auto
+    then have False using RGL_Rec.prems by auto
+    then show ?thesis by auto
+  qed
+qed
+
+lemma nat_induct: "P 0 \<Longrightarrow> (\<And>n. P n \<Longrightarrow> P (Suc n)) \<Longrightarrow> (\<And>n. P n)"
+  using nat.induct by blast
+
+lemma RGL_game_length_induct_basic:
+  "(\<And>a. P (RGL_Atm_Game a)) 
+\<Longrightarrow> (\<And>x. P (RGL_Var x)) 
+\<Longrightarrow> (\<And>n. (\<And>g. (\<And>m g1. m < n \<Longrightarrow> RGL_len_gm g1 < n \<Longrightarrow> P g1) \<Longrightarrow> RGL_len_gm g = n \<Longrightarrow> P g)) 
+\<Longrightarrow> (\<And>g. RGL_len_gm g \<le> n \<Longrightarrow> P g)"
+proof (induction n)
+  case 0
+  then show ?case by (simp add: RGL_len_notO(1))
+next
+  case (Suc n)
+  then show ?case
+  by (metis le_SucE less_Suc_eq_le) 
+qed
+
+lemma RGL_game_length_induct:
+  "(\<And>a. P (RGL_Atm_Game a)) 
+\<Longrightarrow> (\<And>x. P (RGL_Var x)) 
+\<Longrightarrow> (\<And>n. (\<And>g. (\<And>m g1. m < n \<Longrightarrow> RGL_len_gm g1 < n \<Longrightarrow> P g1) \<Longrightarrow> RGL_len_gm g = n \<Longrightarrow> P g)) 
+\<Longrightarrow> (\<And>g. RGL_len_gm g = n \<Longrightarrow> P g)"
+  using RGL_game_length_induct_basic by blast
+
+lemma RGL_game_length_induct_std:
+  "(\<And>a. P (RGL_Atm_Game a)) 
+\<Longrightarrow> (\<And>x. P (RGL_Var x)) 
+\<Longrightarrow> (\<And>n. (\<And>g. (\<And>m g1. m < n \<Longrightarrow> RGL_len_gm g1 < n \<Longrightarrow> P g1) \<Longrightarrow> RGL_len_gm g = n \<Longrightarrow> P g)) 
+\<Longrightarrow> P g"
+  using RGL_game_length_induct by blast
 
 lemma RGL_fml_induct [case_names Atm Not Or Mod]:
   "(\<And>a. P (RGL_Atm_fml a))
@@ -406,61 +514,7 @@ lemma RGL_nml_game_induct [case_names rGL_nml_Atm_Game rGL_nml_Var rGL_nml_DVar 
     \<Longrightarrow> (\<And>x g. RGL_nml_game g \<Longrightarrow>P g \<Longrightarrow> P (RGL_DRec x g))
     \<Longrightarrow> (RGL_nml_game \<alpha> \<Longrightarrow> P \<alpha>)
   "
-  by (auto simp add:Syntax.RGL_nml_game_RGL_nml_fml.inducts(1))
-
-
-lemma RGL_game_induct_normal_connectives:
-  "(\<And>a. P (RGL_Atm_Game a))
-    \<Longrightarrow> (\<And>x. P (RGL_Var x))
-    \<Longrightarrow> (\<And>f. P (RGL_Test f))
-    \<Longrightarrow> (\<And>f. P (RGL_DTest f))
-    \<Longrightarrow> (\<And>g1 g2. P g1 \<Longrightarrow> P g2 \<Longrightarrow> P (RGL_Choice g1 g2))
-    \<Longrightarrow> (\<And>g1 g2. P g1 \<Longrightarrow> P g2 \<Longrightarrow> P (RGL_DChoice g1 g2))
-    \<Longrightarrow> (\<And>g1 g2. P g1 \<Longrightarrow> P g2 \<Longrightarrow> P (RGL_Seq g1 g2))
-    \<Longrightarrow> (\<And>x g. P g \<Longrightarrow> P (RGL_Rec x g))
-    \<Longrightarrow> (\<And>x g. P g \<Longrightarrow> P (RGL_DRec x g))
-    \<Longrightarrow> (\<And>g. (\<forall>g1 g2. g\<noteq> RGL_Choice (RGL_Dual g1) (RGL_Dual g2)) \<Longrightarrow> (\<forall>x g1. g\<noteq>RGL_Rec x (RGL_Dual (RGL_dual_free x g1))) \<Longrightarrow> (\<forall>f. g\<noteq>RGL_Test f) \<Longrightarrow> P g \<Longrightarrow> P (RGL_Dual g))
-    \<Longrightarrow> ((\<And>g g1. g = RGL_Dual (RGL_Rec x (RGL_Dual (RGL_dual_free x g1))) \<Longrightarrow> P g \<Longrightarrow> P g1) 
-          \<Longrightarrow> (\<And>g g1 g2. g= RGL_Dual (RGL_Choice (RGL_Dual g1) (RGL_Dual g2)) \<Longrightarrow> P g \<Longrightarrow> P g1 &&& P g2) 
-          \<Longrightarrow> P \<alpha>)
-  "
-proof - fix g
-  assume ass:"\<And>g. \<forall>g1 g2. g \<noteq> RGL_Choice (RGL_Dual g1) (RGL_Dual g2) \<Longrightarrow> \<forall>x g1. g \<noteq> RGL_Rec x (RGL_Dual (RGL_dual_free x g1)) \<Longrightarrow> \<forall>f. g \<noteq> RGL_Test f \<Longrightarrow> P g \<Longrightarrow> P (RGL_Dual g)"
-     and ass1:"P g"
-     and ass_dtst:"\<And>f. P (RGL_DTest f)"
-     and ass_drec:"\<And>x g. P g \<Longrightarrow> P (RGL_DRec x g)"
-  show "P (RGL_Dual g)"
-  proof (cases "\<forall>g1 g2. g\<noteq> RGL_Choice (RGL_Dual g1) (RGL_Dual g2)")
-    case True
-    then have a:"\<forall>g1 g2. g \<noteq> RGL_Choice (RGL_Dual g1) (RGL_Dual g2)" by simp
-    then show ?thesis
-    proof (cases "\<forall>x g1. g\<noteq>RGL_Rec x (RGL_Dual (RGL_dual_free x g1))")
-      case True
-      then have b:"\<forall>x g1. g\<noteq>RGL_Rec x (RGL_Dual (RGL_dual_free x g1))" by simp
-      then show ?thesis
-      proof (cases "\<forall>f. g\<noteq>RGL_Test f")
-        case True
-        then have c:"\<forall>f. g\<noteq>RGL_Test f" by simp
-        then show ?thesis using a b c ass ass1 by auto
-      next
-        case False
-        then show ?thesis
-        proof - from False obtain f where "g=RGL_Test f" by auto
-          then show ?thesis using ass_dtst unfolding RGL_DTest_def by auto
-        qed
-      qed
-    next
-      case False
-      then show ?thesis
-      proof -from False obtain x g1 where "g = RGL_Rec x (RGL_Dual (RGL_dual_free x g1))" by auto
-        then show ?thesis using ass_drec ass1 unfolding RGL_DRec_def
-    qed    
-  next
-    case False
-    then show ?thesis sorry
-  qed
-qed
-  
+  by (auto simp add:Syntax.RGL_nml_game_RGL_nml_fml.inducts(1))  
 
 lemma RGL_nml__ddnml:
   "RGL_nml_game g \<Longrightarrow> RGL_ddnml_game g" 
